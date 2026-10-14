@@ -6,7 +6,18 @@ The [Earth Rover Challenge](https://earth-rover-challenge.github.io/) uses this 
 
 Made by **MV2 of Munim, Inc.** The code was written with AI agents.
 
-**Status (v0.5.0):** tested only against the built-in simulator, synthetic maps and synthetic camera images. It has not driven a real rover or seen a real camera frame yet. Treat the defaults as a starting point and tune them on the first real runs, starting with `--calibrate`.
+**Status (v0.6.0):** the pilot has been tested only against the built-in simulator, synthetic maps and synthetic camera images. It has not driven a real rover or seen a real camera frame yet. What real rovers do with its commands has now been measured on 279 recorded rides from the public FrodoBots-2K dataset ([FINDINGS-frodobots-2k.md](FINDINGS-frodobots-2k.md)). Treat the defaults as a starting point and tune them on the first real runs, starting with `--calibrate`.
+
+## What the recorded rides say
+
+`frodo_motion.py` reads the control, wheel-RPM and GPS logs of a sample of FrodoBots-2K rides straight from the dataset's zip files, without downloading the video. On 279 rides across all 24 parts:
+
+- a positive `angular` turns the rover **left** (440 to 57 in a sign test). The SDK's ROS2 bridge and LeRobot's Earth Rover driver both send a left turn as a positive `angular`, too.
+- at full `linear` the rover covers about **0.8 m/s**
+- the wheels respond about **0.8 s** after a command, and GPS shows the motion about **1.5 s** after the wheels, so a turn reaches the GPS course about **2.5 s** after it is commanded
+- the effective wheel radius is **0.064 m** (0.0067 m/s per RPM)
+
+So since v0.6.0, a real rover without `--calibration` is driven with a positive `angular` turning left. Earlier versions assumed right, which would make every correction turn the rover further away. Details, limits and credits are in [FINDINGS-frodobots-2k.md](FINDINGS-frodobots-2k.md). The numbers there derive from FrodoBots-2K (FrodoBots Lab, CC BY-SA 4.0) and are shared under the same licence.
 
 ## Why not the plain example
 
@@ -14,7 +25,7 @@ The SDK ships a simple waypoint example. On a real rover, a bearing-follower lik
 
 | Problem | What the pilot does |
 |---|---|
-| The SDK doesn't say which way a positive `angular` turns, or what `orientation` reads (its example shows `128`). Guess wrong and every correction turns the rover further away. | `--calibrate` spins the rover, drives two short straights with a turn between them and measures both (see below). `--calibration` applies the result. |
+| The SDK doesn't say which way a positive `angular` turns, or what `orientation` reads (its example shows `128`). Guess wrong and every correction turns the rover further away. | Without a calibration, a real rover is driven with a positive `angular` turning left, as the recorded rides show. `--calibrate` spins the rover, drives two short straights with a turn between them and measures both (see below). `--calibration` applies the result. |
 | With no fix, the rover reports latitude/longitude `1000`. Bad parsing turns missing values into 0/0. | `GpsFilter` drops no-fix, 0/0, NaN and impossible jumps. It smooths the remaining fixes and stops the rover if no fix has arrived for 3 s. |
 | The compass is offset by the motors, the mount and local magnetic fields. | `HeadingEstimator` learns the bias as the rover drives. On straight stretches it fits a line through the GPS fixes and compares that course with the mean compass reading, then corrects the offset gradually. If the compass drops out, it falls back to the last GPS course. |
 | A checkpoint a few hundred metres away is behind buildings, fences or water. | With `--osm` or `--fetch-osm`, each leg is planned on OpenStreetMap footways, paths and sidewalks (`route_planner.py`), and `PathFollower` steers along it (pure pursuit, 8 m lookahead). If the rover strays more than 30 m it replans. |
@@ -22,7 +33,7 @@ The SDK ships a simple waypoint example. On a real rover, a bearing-follower lik
 | A bin, a planter or a parked scooter sits on the line the rover is driving. | With `--vision`, `free_space.py` reads the front camera 5 times a second, works out how far the rover could drive in each direction, and bends the heading to the nearest clear one (see below). |
 | GPS noise is about the size of a 2 m arrival radius, so the rover never "arrives". | Checkpoints are reported from 10 m, inside the server's 15 m tolerance. A refused report is retried every 2 s. Inside 3 m the rover holds still instead of circling. |
 | The SDK confirms the last checkpoint only after a confirmed stop, and may hold that request for up to 12 s. | Before the final report the pilot sends stop commands for 1.5 s. It waits up to 20 s for the answer. If none arrives, it reads `/checkpoints-list` to see whether the report counted before trying again. |
-| Commands arrive about 500 ms late. | Low steering gain (full turn rate needs a 60° error) and turn-in-place above 60°. |
+| Commands arrive late, and GPS shows a turn about 2.5 s after it is commanded. | The pilot steers on the compass, not the GPS course, and learns the compass bias only on straight stretches. Low steering gain (full turn rate needs a 60° error) and turn-in-place above 60°. |
 | A kerb or wall blocks the rover. | If it's commanded forward but moves less than 1.5 m in 10 s, it backs up, turns (alternating sides) and drives on. |
 | The pilot or its connection drops in the middle of a mission. | `--no-start` resumes it: the pilot skips `/start-mission` and drives on from the server's latest reached checkpoint. |
 
@@ -57,8 +68,8 @@ python rover_pilot.py --sdk http://localhost:8000 --calibration rover.json --log
 Options:
 - `--list-missions`: print the missions the SDK lists for this bot (`GET /missions`: slug, distance and number of checkpoints) and exit. Set one as `MISSION_SLUG`.
 - `--calibrate`, `--calibration-out rover.json`: measure which way orientation and angular run, and save the result (see below).
-- `--calibration rover.json`: drive with a saved calibration. Without it, the pilot assumes orientation in degrees clockwise from north and a positive angular turning right.
-- `--cruise 0.6`: forward command, 0 to 1. The SDK suggests 0.3–0.5 for first tests.
+- `--calibration rover.json`: drive with a saved calibration. Without it, the pilot assumes orientation in degrees clockwise from north and a positive angular turning left on a real rover. The simulator keeps its own defaults (positive angular turning right).
+- `--cruise 0.6`: forward command, 0 to 1. The SDK suggests 0.3–0.5 for first tests. On the recorded rides, 0.6 covered about 0.46 m/s.
 - `--report-radius 10`
 - `--osm area.json`: plan each leg on a saved map area (see below).
 - `--fetch-osm`: fetch the map around each leg from Overpass as needed.
@@ -83,7 +94,7 @@ On a long mission these show which legs were slow or hard, so the next run can b
 
 ## Calibrate a rover (`calibrate.py`)
 
-The SDK describes `angular` as "rotation speed left/right (-1 to 1)" and shows `orientation` as a bare number, without saying which way is positive or what a full turn reads. The pilot learns a constant compass offset by itself, but a compass that runs the other way, or a turn command with the opposite sign, makes it steer away from every checkpoint: in the simulator, a rover whose positive `angular` turns left ends up facing away from the first checkpoint and turning on the spot until it times out.
+The SDK describes `angular` as "rotation speed left/right (-1 to 1)" and shows `orientation` as a bare number, without saying which way is positive or what a full turn reads. The recorded rides answer the `angular` question for the rovers they were made on, but not for `orientation`, which they don't log. The pilot learns a constant compass offset by itself, but a compass that runs the other way, or a turn command with the opposite sign, makes it steer away from every checkpoint: in the simulator, a rover whose `angular` runs the other way from what the pilot assumes ends up facing away from the first checkpoint and turning on the spot until it times out.
 
 `--calibrate` finds out on the rover, in about 75 seconds:
 
@@ -109,7 +120,7 @@ The result has this shape (shortened; the values are illustrative, for the simul
 }
 ```
 
-`yaw_dps_at_full` and `speed_mps_at_full` are the turn rate and speed at a full command, worth checking against the simulator's 60°/s and 1.2 m/s before tuning the gains. If a step fails, `ok` is false and `reason` says which one. A failed result is never saved, and `--calibration` refuses one.
+`yaw_dps_at_full` and `speed_mps_at_full` are the turn rate and speed at a full command. The simulator uses 60°/s and 1.2 m/s; the recorded rides suggest about 0.8 m/s at full `linear` on a real rover. If a step fails, `ok` is false and `reason` says which one. A failed result is never saved, and `--calibration` refuses one.
 
 Try it in the simulator with a rover whose orientation reads 0–255 counter-clockwise and whose positive `angular` turns left:
 
@@ -117,6 +128,14 @@ Try it in the simulator with a rover whose orientation reads 0–255 counter-clo
 python rover_pilot.py --simulate --sim-quirks --calibrate --calibration-out quirky.json
 python rover_pilot.py --simulate --sim-quirks --calibration quirky.json
 ```
+
+## Measure the rovers from FrodoBots-2K (`frodo_motion.py`)
+
+```
+python frodo_motion.py --out-dir out --rides-per-part 12
+```
+
+It reads the dataset's index, then each of the 24 zip parts (2 to 95 GB each) through HTTP range requests: first the zip's central directory, then only the control and GPS CSVs of 12 rides spread through the part, and one IMU file's first rows. It refuses to go on if the server ignores range requests, so it never downloads a whole part. Our run read about 230 MB in 12 minutes. `out/report.md` sums up the findings, `out/summary.json` has every table and `out/rides.jsonl` has one line per ride. Standard library only.
 
 ## Check a mission before driving it
 
@@ -168,7 +187,7 @@ Map data © [OpenStreetMap contributors](https://www.openstreetmap.org/copyright
 
 ## Assumptions to check on the first real run
 
-- Which way `orientation` and `angular` run: `--calibrate` measures this. Without a calibration the pilot assumes compass degrees clockwise from north (as the SDK dashboard draws it) and a positive `angular` turning right.
+- Which way `orientation` and `angular` run: `--calibrate` measures this. Without a calibration, the pilot assumes compass degrees clockwise from north (as the SDK dashboard draws it) and a positive `angular` turning left (as the recorded rides, the SDK's ROS2 bridge and LeRobot's driver show).
 - `orientation` updates often enough to follow a 0.4 spin. If it jumps by more than a third of a turn between readings, calibration stops and says so.
 - The server judges a checkpoint against the rover's own latest GPS reading.
 - `/checkpoints-list` returns the mission's checkpoints before the first `/start-mission`, so `--check-route` can run before the clock starts. If it returns none, the check has to run after the start, or from a copy of the checkpoints.
@@ -180,12 +199,13 @@ Map data © [OpenStreetMap contributors](https://www.openstreetmap.org/copyright
 
 - The camera layer has only seen rendered images. The next step is to check it on recorded frames from the FrodoBots-2K dataset and on a real rover.
 - Indoor and off-road tracks use image goals, not GPS. This pilot covers only GPS checkpoint missions.
-- The gains are tuned on the simulator's motion model (1.2 m/s, 60°/s at full command), not on a real rover. `--calibrate` measures the real rover's numbers; the gains don't adapt to them yet.
+- The gains are tuned on the simulator's motion model (1.2 m/s, 60°/s at full command), not on a real rover. The recorded rides put a real rover at about 0.8 m/s at full command, and `--calibrate` measures each rover's numbers, but the gains don't adapt to them yet.
+- The GPS lag (about 1.5 s behind the wheels) isn't compensated yet. Wheel RPMs could carry the position forward between fixes.
 
 ## Tests
 
 ```
-python -m unittest test_rover_pilot test_calibrate test_route_planner test_free_space -v
+python -m unittest test_rover_pilot test_rover_defaults test_calibrate test_route_planner test_free_space test_frodo_motion -v
 ```
 
 The tests cover:
@@ -196,13 +216,15 @@ The tests cover:
 - full simulated missions on several seeds, including heavy GPS dropouts, a rover stuck for its first 30 s, a planned dogleg route and a planner that fails
 - leg summaries, and resuming a mission whose first two checkpoints the server already counts
 - orientation and turn conventions: degrees, 0–255 and radians, either direction, a left-turning `angular`; a rover with the opposite `angular` sign going nowhere without a calibration, and a rover with every convention reversed flying the whole mission with one
+- the real-rover defaults: a positive `angular` turning left, used by the command line on a real SDK without `--calibration`, overridden by a calibration, not used in the simulator, and flying the whole mission on a simulated left-turning rover
 - calibration in the simulator: the usual rover, one with every convention reversed, a mirrored compass only, a left-turning `angular` only; the starting bias, turn rate and speed it measures; and failures (no GPS fix, no turn seen, a rover that can't move), each ending with a stop
 - the command line: calibrate a quirky simulated rover, save the result and fly the mission with it; a failed calibration is refused
 - the route check: each remaining leg measured from the rover's position, legs with no route, a planner error on one leg, no GPS fix, the GeoJSON output, and the command line on a synthetic map with nothing driven
 - the camera model, ground-colour matching, corridors, and the guard's choices: leave the heading alone, steer to the nearer side, stop and turn at a wall, slow down with no frames, learn a new surface
 - closed loop in the simulator: with a 2 m hedge on the straight line to the checkpoint, the rover without vision drives into it, and with vision it goes around without touching it (two seeds)
 - the route planner on synthetic maps: detours, footways versus busy roads, sidewalks, disconnected networks, ways cut at the edge of the fetched area, and the command line
+- `frodo_motion.py`: reading zips through range requests (including zip64 and CRC checks), and the analysis on a simulated rover with a known turn direction, speed and GPS delay
 
 ## License
 
-Apache-2.0. Not affiliated with FrodoBots, BitRobot or the Earth Rover Challenge organisers.
+Code: Apache-2.0 (see `LICENSE`) from 14 October 2026; releases up to v0.5.0 keep the licence they were published with. Copyright 2026 Munim, Inc. The FrodoBots-2K numbers in `FINDINGS-frodobots-2k.md` derive from FrodoBots-2K (FrodoBots Lab, CC BY-SA 4.0) and are shared under CC BY-SA 4.0. Map data fetched at run time is © OpenStreetMap contributors (ODbL). Not affiliated with FrodoBots, BitRobot or the Earth Rover Challenge organisers.

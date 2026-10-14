@@ -20,6 +20,8 @@ What it adds over a plain bearing-follower:
   obstacles in the way and slows or stops the rover when nothing is clear.
 - Which way orientation and angular run can be measured on the rover first
   (calibrate.py, --calibrate) and applied to the mission (--calibration).
+  Without a calibration, a real rover is driven with a positive angular
+  turning left, as the FrodoBots-2K rides show (FINDINGS-frodobots-2k.md).
 - Being stuck (driving with no GPS progress) triggers a back-up-and-turn move.
 - Each leg is summed up (time, reports, recoveries) in the result and the log.
 - A built-in simulator (command latency, GPS noise and dropouts, compass bias,
@@ -42,7 +44,7 @@ import time
 import urllib.error
 import urllib.request
 
-__version__ = "0.5.0"
+__version__ = "0.6.0"
 
 EARTH_RADIUS_M = 6371000.0
 M_PER_DEG = EARTH_RADIUS_M * math.pi / 180.0
@@ -58,6 +60,12 @@ DEMO_OBSTACLES = [(20.3, 14.6, 1.0), (62.5, 12.0, 1.0)]
 # For --simulate --sim-quirks: orientation reads 0-255 counter-clockwise and a
 # positive angular turns left.
 SIM_QUIRKS = {"orientation_scale": 256.0, "orientation_clockwise": False, "angular_sign": -1.0}
+# What to assume on a real rover without --calibration. A positive angular
+# turns it left: on 279 FrodoBots-2K rides the GPS course turned against the
+# commanded angular 440 times to 57 (FINDINGS-frodobots-2k.md), and the SDK's
+# ROS2 bridge and LeRobot's Earth Rover driver both send a left turn as a
+# positive angular. Orientation is still assumed to be degrees clockwise.
+ROVER_DEFAULTS = {"angular_right_positive": False}
 
 
 # --- geometry -------------------------------------------------------------
@@ -140,8 +148,9 @@ def parse_heading(value):
 class Conventions:
     """How a rover's /data orientation and /control angular run.
 
-    The defaults are what the pilot assumes without a calibration: orientation
-    in degrees clockwise from north, and a positive angular turning right.
+    The defaults match the built-in simulator: orientation in degrees
+    clockwise from north, and a positive angular turning right. On a real rover
+    without a calibration the pilot uses rover_conventions() instead.
     calibrate.py measures them on the rover; bias_deg, if known, is the
     compass offset to start from before the pilot has learned its own.
     """
@@ -175,6 +184,11 @@ class Conventions:
     def angular(self, angular):
         """The /control angular that turns the way `angular` (positive = right) means."""
         return angular if self.angular_right_positive else 0.0 - angular
+
+
+def rover_conventions():
+    """The conventions to drive a real rover with when it hasn't been calibrated."""
+    return Conventions.from_dict(ROVER_DEFAULTS)
 
 
 # --- estimation -----------------------------------------------------------
@@ -989,7 +1003,8 @@ def main(argv=None):
                         "about 20 m; needs open ground)")
     p.add_argument("--calibration-out", help="with --calibrate, save a successful result here")
     p.add_argument("--calibration", help="drive with the conventions saved by "
-                                         "--calibrate --calibration-out")
+                                         "--calibrate --calibration-out (without it, a real "
+                                         "rover is driven with a positive angular turning left)")
     p.add_argument("--vision", action="store_true",
                    help="steer around obstacles seen by the front camera "
                         "(a real rover needs Pillow: pip install pillow)")
@@ -1029,6 +1044,8 @@ def main(argv=None):
         if not isinstance(saved, dict) or not saved.get("ok"):
             p.error("%s is not a successful calibration" % args.calibration)
         conventions = Conventions.from_dict(saved)
+    elif not args.simulate:
+        conventions = rover_conventions()
 
     camera = None
     if args.vision and not (args.check_route or args.calibrate):
