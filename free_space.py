@@ -13,12 +13,17 @@ when nothing ahead is clear.
 
 It sees colour, not depth. An obstacle the same colour as the ground (a grey
 wall on grey pavement) is missed, and a change of surface (grass beside the
-path, a painted line, a hard shadow edge) can read as an obstacle. It is a
-cheap first layer, meant to be replaced or backed by a learned model.
+path, a painted line, a hard shadow edge) can read as an obstacle. On recorded
+FrodoBots-2K front-camera frames (FINDINGS-frodobots-2k.md) the default
+settings saw an obstacle within 5 m on 10 of 11 frames, most of them clear
+paths: tree shadows, an over-exposed patch and the rover's own body at the
+bottom of the frame all read as obstacles. `skip_rows` leaves out the bottom
+rows where the rover's body shows; the other settings are being measured.
+It is a cheap first layer, meant to be replaced or backed by a learned model.
 
 Standard library only. Decoding the SDK's JPEG frames needs Pillow
 (decode_frame); the rest, including the simulator renderer, does not.
-By MV2 of Munim, Inc.; written with AI agents.
+By MV2 of Munim, Inc.; written with AI agents. Apache-2.0.
 """
 
 from __future__ import annotations
@@ -27,7 +32,7 @@ import io
 import math
 import random
 
-__version__ = "0.3.0"
+__version__ = "0.4.0"
 
 GROUND_GREY = (128, 128, 128)
 HEDGE_GREEN = (60, 120, 50)
@@ -152,30 +157,36 @@ class GroundModel:
                            self.spread + alpha * (other.spread - self.spread))
 
 
-def ground_patch(frame, rows=3, width_frac=0.4):
-    """Pixels of the bottom-centre band: the ground the rover is about to drive on."""
+def ground_patch(frame, rows=3, width_frac=0.4, skip_rows=0):
+    """Pixels of the bottom-centre band: the ground the rover is about to drive on.
+
+    `skip_rows` bottom rows are left out first (where the rover's own body shows).
+    """
     half = max(1, int(frame.width * width_frac / 2))
     mid = frame.width // 2
-    return [frame.at(u, v) for v in range(frame.height - rows, frame.height)
+    bottom = frame.height - skip_rows
+    return [frame.at(u, v) for v in range(bottom - rows, bottom)
             for u in range(mid - half, mid + half)]
 
 
 # --- free space -----------------------------------------------------------
 
-def scan(frame, camera, model, max_range_m=8.0, gap=2, **tol):
+def scan(frame, camera, model, max_range_m=8.0, gap=2, skip_rows=0, **tol):
     """Obstacle points seen in `frame`: one (x, y) per blocked column, in metres.
 
     Each column is followed up from the bottom while it looks like ground. A
     column that reaches `max_range_m` or the horizon is clear. Where `gap`
     rows in a row stop looking like ground, the last ground pixel below them
     is taken as the obstacle's foot (slightly nearer than the real foot).
+    The bottom `skip_rows` rows are not looked at.
     """
     matches = model.matcher(**tol)
+    first = frame.height - 1 - skip_rows
     points = []
     for u in range(frame.width):
         ground = camera.ground[u]
         last, misses, hit = None, 0, False
-        for v in range(frame.height - 1, -1, -1):
+        for v in range(first, -1, -1):
             gp = ground[v]
             if gp is None:
                 break
@@ -189,7 +200,7 @@ def scan(frame, camera, model, max_range_m=8.0, gap=2, **tol):
                     hit = True
                     break
         if hit:
-            points.append(last if last is not None else ground[frame.height - 1])
+            points.append(last if last is not None else ground[first])
     return points
 
 
@@ -213,12 +224,14 @@ class VisionGuard:
     `source()` returns a Frame of the camera's size, or None when no frame is
     available. It is called at most every `period_s`; a scan older than
     `stale_s` is not trusted, and the pilot is slowed to `blind_scale` instead.
+    `skip_rows`, `gap` and `scan_kw` (colour tolerances for GroundModel.matcher)
+    are passed to the ground patch and the scan.
     """
 
     def __init__(self, source, camera=None, period_s=0.2, stale_s=1.0, half_width_m=0.4,
                  safe_m=5.0, stop_m=1.2, max_range_m=8.0, step_deg=5.0, edge_deg=5.0,
                  commit_s=2.0, switch_penalty_deg=30.0, turn_s=1.5, blind_scale=0.5,
-                 refit_after=15, model_alpha=0.2):
+                 refit_after=15, model_alpha=0.2, skip_rows=0, gap=2, scan_kw=None):
         self.source = source
         self.camera = camera or Camera()
         self.period_s = period_s
@@ -234,6 +247,9 @@ class VisionGuard:
         self.blind_scale = blind_scale
         self.refit_after = refit_after
         self.model_alpha = model_alpha
+        self.skip_rows = skip_rows
+        self.gap = gap
+        self.scan_kw = dict(scan_kw or {})
         half = self.camera.hfov_deg / 2.0 - edge_deg
         n = int(math.floor(half / step_deg))
         self.half_view_deg = n * step_deg
@@ -258,7 +274,7 @@ class VisionGuard:
                 "avoidances": self.avoidances, "stops": self.stops, "refits": self.refits}
 
     def _update_model(self, frame):
-        patch = GroundModel.fit(ground_patch(frame))
+        patch = GroundModel.fit(ground_patch(frame, skip_rows=self.skip_rows))
         if self.model is None:
             self.model = patch
         elif self.model.close_to(patch):
@@ -289,7 +305,8 @@ class VisionGuard:
         else:
             self.frames += 1
             self._update_model(frame)
-            self.points = scan(frame, self.camera, self.model, max_range_m=self.max_range_m)
+            self.points = scan(frame, self.camera, self.model, max_range_m=self.max_range_m,
+                               gap=self.gap, skip_rows=self.skip_rows, **self.scan_kw)
             self._scan_t = t
         if self._scan_t is not None and t - self._scan_t > self.stale_s:
             self.points = None

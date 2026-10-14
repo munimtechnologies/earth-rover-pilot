@@ -1,6 +1,6 @@
 # How Earth Rovers respond to commands: measured from FrodoBots-2K
 
-MV2 of Munim, Inc., 14 October 2026. The analysis code (`frodo_motion.py`, `sim_study.py`) was written with AI agents.
+MV2 of Munim, Inc., 14 October 2026. The analysis code (`frodo_motion.py`, `sim_study.py`, `gain_study.py`) was written with AI agents.
 
 The Earth Rover SDK says `angular` is "rotation speed left/right (-1 to 1)" but not which way is positive. It doesn't give the speed or turn rate at a given command, the gyroscope's units or how late the GPS is. [FrodoBots-2K](https://huggingface.co/datasets/BitRobot/FrodoBots-2K) logs every command a human driver sent, the four wheel RPMs, the GPS and the IMU for about 2,000 hours of Earth Rover rides. So the answers can be measured instead of guessed.
 
@@ -11,7 +11,7 @@ The Earth Rover SDK says `angular` is "rotation speed left/right (-1 to 1)" but 
 | Question | Answer | Evidence |
 |---|---|---|
 | Which way does a positive `angular` turn the rover? | **Left (counter-clockwise).** | When both were clearly non-zero (\|angular\| ≥ 0.2, course rate ≥ 5°/s), the GPS course turned left 440 times and right 57 times (89% left). The correlation of the course rate (clockwise positive) with angular is r = -0.243 (n = 24,446). The gyroscope agrees (below). |
-| How fast does it turn? | About **30°/s per unit of `angular`** (28 to 36). | Gyroscope, below. At the pilot's angular cap of 0.6 that is about 18°/s, so a 90° turn in place takes about 5 s. |
+| How fast does it turn? | About **30°/s per unit of `angular`** (28 to 36). | Gyroscope, below. At the pilot's old angular cap of 0.6 that is about 18°/s, so a 90° turn in place takes about 5 s. |
 | How late is the GPS? | About **1.5 s behind the wheels** and about **2.5 s behind the command**. | GPS speed tracks the mean wheel RPM best when the GPS is taken 1.5 s later (r = 0.686, n = 128,704). The course rate tracks angular best at 2.5 s (2.0 to 3.0 s are close). |
 | How fast do the wheels respond? | About **0.8 s**. | Mean wheel RPM tracks the size of the command best 0.8 s later (r = 0.877, n = 486,900). 0.8 s plus 1.5 s matches the 2.5 s from command to GPS. |
 | Speed at a given command? | About **0.8 m/s at full `linear`**, roughly in proportion below that. | 0.79 m/s per unit of linear, fitted through the origin (r = 0.698). Mean GPS speed by command band: 0.1–0.3 → 0.22 m/s; 0.3–0.5 → 0.30; 0.5–0.7 → 0.46; 0.7–0.9 → 0.60; 0.9–1.0 → 0.80 (sd about 0.3 m/s in each band). |
@@ -41,7 +41,7 @@ So earth-rover-pilot since v0.6.0 drives an uncalibrated real rover with a posit
 ## What it means for a pilot
 
 - **Speed.** A rover at full command covers about 0.8 m/s, not the 1.2 m/s the simulator assumes. A 50-mile marathon at 0.6 to 0.8 m/s is 28 to 37 hours of driving. That is in line with the human teams' 29 h 38 min.
-- **Turn rate.** About 30°/s per unit of `angular`, not 60. Steering gains tuned on the simulator's rover turn a real one half as fast as intended. A study of gains for a real-like rover is the next step.
+- **Turn rate.** About 30°/s per unit of `angular`, not 60. Steering gains tuned on the simulator's rover turn a real one half as fast as intended. The gain study below finds better ones.
 - **Calibration.** At 30°/s, `--calibrate`'s 30 s spin at 0.4 covers only about 350°, short of the whole turn it needs to read the compass scale. Up to v0.6.0 it would most likely have failed on a real rover. Since v0.7.0 it spins on, 10 s at a time, until a whole turn shows (up to 90 s).
 - **GPS lag.** GPS shows a turn about 2.5 s after it is commanded. A controller that steers on GPS course alone keeps turning for 2.5 s too long and overshoots. The pilot steers on the compass and learns the compass bias only on straight stretches. That is the right shape, and the lag argues for keeping it.
 - **Odometry.** An effective wheel radius of 0.064 m confirms the 0.065 m that earlier visual-SLAM work on this dataset assumed ([SlamMate/vSLAM-on-FrodoBots-2K](https://github.com/SlamMate/vSLAM-on-FrodoBots-2K)). Wheel odometry from RPMs, or the gyroscope for heading, can fill the 1 s gaps between GPS fixes.
@@ -63,6 +63,41 @@ Every mission was completed either way. On the real-like rover turning at the me
 
 So `--gps-lag` stays **off by default**. It is there for experiments on a real rover. The likely reason it doesn't help: the pilot already steers on the compass, so a late position only matters for the aim point, and at 0.5 m/s, 1.5 s is under a metre. This is a simulation result with a simple motion model. A real rover may differ.
 
+## Steering gains for a rover that turns at 30°/s (simulation)
+
+`gain_study.py` 0.1.0 flew 24 steering settings on rover_pilot 0.7.0: cruise 0.6, 0.8 or 1.0; angular capped at 0.6 or 1.0; full angular at a 30° or 60° heading error; turn in place above 60° or 90°. Each setting flew 3 missions (the demo, 221 m; a zigzag, 236 m; a hairpin, 130 m) on 30 seeds, on a simulated rover that moves like the recorded ones (`SIM_REAL`) turning at 20, 30 or 45°/s per unit of `angular`, because the turn rate is only roughly known. That is 6,480 missions; it took under 6 minutes. Each setting is compared with the old defaults (cruise 0.6, cap 0.6, full turn at 60°, turn in place above 60°) seed by seed, with a sign test in each of the 9 mission × turn-rate groups.
+
+Every setting completed all 270 of its missions.
+
+| Setting | Mission time vs old defaults | Groups faster (p < 0.05) | Groups slower | Back-up moves per run | Refused reports per run |
+|---|---|---|---|---|---|
+| old defaults: cruise 0.6, cap 0.6, full turn 60°, turn in place > 60° | 1.000 | — | — | 1.62 | 0.09 |
+| **cruise 0.6, cap 1.0, full turn 60°, turn in place > 90°** | **0.970** | **9 of 9** | 0 | **1.07** | 0.07 |
+| cruise 0.6, cap 1.0, full turn 60°, turn in place > 60° | 0.975 | 9 of 9 | 0 | 1.23 | 0.09 |
+| cruise 0.6, cap 0.6, full turn 60°, turn in place > 90° | 0.992 | 6 of 9 | 0 | 1.39 | 0.09 |
+| cruise 0.6, full turn at 30° (any cap or threshold) | 1.053 to 1.072 | 0 | 7 to 9 of 9 | 1.57 to 2.03 | 0.06 to 0.09 |
+| cruise 0.8, best setting (cap 1.0, full turn 60°, > 90°) | 0.744 | 9 of 9 | 0 | 0.44 | 0.06 |
+| cruise 1.0, best setting (cap 1.0, full turn 60°, > 90°) | 0.614 | 9 of 9 | 0 | 0.38 | 0.03 |
+
+At the measured 30°/s, the median times with the new setting against the old were 421.5 vs 429.0 s (demo), 219.6 vs 229.1 s (hairpin) and 431.2 vs 438.5 s (zigzag).
+
+What this means:
+- **At the same speed, sharper turns help, a little but consistently.** Letting `angular` reach 1.0 lets a real rover turn at about 30°/s instead of 18°/s, and turning in place only above 90° keeps it moving through medium turns. It was faster in all 9 groups, by about 3% overall, needed a third fewer back-up-and-turn moves, and lost nothing. So since v0.8.0, **a real rover is steered with a cap of 1.0 and turns in place only above 90°** (`ROVER_STEERING`). The simulator keeps its own defaults, so earlier simulator results don't move. `--max-angular` and `--turn-in-place` override either.
+- **Reaching full angular at 30° of error is worse** than at 60°: it was slower in 7 to 9 of the 9 groups at cruise 0.6. With commands 0.8 s late and a turn rate of 30°/s, a stiffer gain overshoots.
+- **Driving faster wins by far the most in simulation** (39% less time at cruise 1.0), but the cruise **stays at 0.6**. The simulator has no pedestrians, kerbs, slopes or rough ground, and the SDK suggests 0.3–0.5 for first tests. Speed is a choice for whoever runs the rover (`--cruise`), not something this study can settle.
+- Limits: simulated rovers only, with a simple motion model fitted to the recorded rides; 3 missions; one GPS noise level. Real rovers may differ.
+
+## The front camera on real frames: a first look (negative)
+
+`free_space.py`, the camera layer behind `--vision`, had only seen frames the simulator drew. `frodo_frames.py` 0.1.0 read a few HLS video segments from 4 rides in parts 1 and 12 (about 55 MB) and ran the scan on one frame from each.
+
+- **Which stream is which.** Each ride has two video streams. `uid_s_1000` is 1024 × 576 H.264 at 20 fps in 16.5 s segments, a normal wide-angle view ahead: the **front camera**. `uid_s_1001` is 540 × 360 with a circular fisheye image that shows the rover's own rails and flag mast, most likely the rear camera (the rides also log `rear_camera_timestamps`). The audio is AAC, 48 kHz mono.
+- **Clocks.** A segment's file name is its start time in UTC, and it lines up with the control log's timestamps: on ride 18397 the control log ends at 04:32:23 UTC and the last video segment at about 04:32:25.
+- **The result.** On the 11 front-camera frames, the scan saw less than 5 m clear ahead on 10 and less than 1.2 m on 4 (median 1.76 m). Looking at the frames ourselves (small thumbnails, our own judgement, not a labelled set), 9 or 10 of the 11 show an open path at least 5 m ahead. So on a real rover, `--vision` as it stands would slow, swerve or turn in place for nothing most of the time.
+- **Why, from the frames.** Tree shadows across pavement; a sunlit, over-exposed paved plaza; and on one ride, parts of the rover's own body at the bottom edge of the frame. Those set the ground colour and block the bottom row, so all three frames of that ride read 0.53 m, the distance of the bottom row. On the fisheye stream every frame read 0.53 m, because the black border and the rover's body fill its bottom rows. The scan must only be used on the front camera.
+- **What changed.** `free_space.py` 0.4.0 adds `skip_rows`, which leaves out the bottom rows where the rover's body shows, both from the ground colour and from the scan. Its defaults are unchanged, and `--vision` now says that it is experimental. `frodo_frames.py` 0.2.0 measures the phantom rate properly on up to 576 front-camera frames from all 24 parts, using what the driver did next as the label: the distance driven straight on afterwards (from the wheel RPMs) is a lower bound on how far the way ahead was clear. It compares 8 variants of the scan and checks the video clock against the wheel motion. A variant becomes the default only if it clearly lowers the phantom rate.
+- Limits: 11 frames from 4 rides, judged by eye. This is why the measurement above is being run.
+
 ## Limits
 
 - These are human-driven rides from the Earth Rovers game (Earth Rover Zero era, early 2024), logged on the rover. The SDK, newer rovers and other firmware may behave differently. The sign is backed by the SDK's and LeRobot's code; the speeds, turn rates and lags are only from this data.
@@ -77,10 +112,11 @@ So `--gps-lag` stays **off by default**. It is there for experiments on a real r
 ```
 python frodo_motion.py --out-dir out --rides-per-part 12 --imu-per-part 1 --gyro-max-mb 40
 python sim_study.py --out-dir out-sim --seeds 30
+python gain_study.py --out-dir out-gains --seeds 30
 ```
 
-Standard library only. Our `frodo_motion.py` run took 19 minutes and read about 317 MB. `out/summary.json` has every table and `out/rides.jsonl` has one line per ride. `sim_study.py` took about a minute.
+Standard library only. Our `frodo_motion.py` run took 19 minutes and read about 317 MB. `out/summary.json` has every table and `out/rides.jsonl` has one line per ride. `sim_study.py` took about a minute and `gain_study.py` about 6 minutes; both write `report.md`, `summary.json` and `runs.jsonl`. The study numbers above were made with rover_pilot 0.7.0; v0.8.0 leaves the simulator's defaults as they were, so it gives the same numbers.
 
 ## Licence and credit
 
-Data: FrodoBots-2K by FrodoBots Lab, CC BY-SA 4.0. The numbers and tables in this file derive from it and are shared under CC BY-SA 4.0. The code (`frodo_motion.py`, `sim_study.py` and their tests) is Apache-2.0, like the rest of this repository. Not affiliated with FrodoBots, BitRobot or the Earth Rover Challenge organisers.
+Data: FrodoBots-2K by FrodoBots Lab, CC BY-SA 4.0. The numbers and tables in this file derive from it and are shared under CC BY-SA 4.0. The code (`frodo_motion.py`, `sim_study.py`, `gain_study.py` and their tests) is Apache-2.0, like the rest of this repository. Not affiliated with FrodoBots, BitRobot or the Earth Rover Challenge organisers.

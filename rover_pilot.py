@@ -22,6 +22,9 @@ What it adds over a plain bearing-follower:
   (calibrate.py, --calibrate) and applied to the mission (--calibration).
   Without a calibration, a real rover is driven with a positive angular
   turning left, as the FrodoBots-2K rides show (FINDINGS-frodobots-2k.md).
+- A real rover is steered with the gains that did best for a rover that turns
+  like the recorded ones (ROVER_STEERING, from gain_study.py); the simulator
+  keeps the Steering class defaults.
 - Optionally, a late GPS fix is moved forward by the driving commanded since
   it was taken (--gps-lag); on the FrodoBots-2K rides the GPS runs about
   1.5 s behind the wheels.
@@ -47,7 +50,7 @@ import time
 import urllib.error
 import urllib.request
 
-__version__ = "0.7.0"
+__version__ = "0.8.0"
 
 EARTH_RADIUS_M = 6371000.0
 M_PER_DEG = EARTH_RADIUS_M * math.pi / 180.0
@@ -65,8 +68,9 @@ DEMO_OBSTACLES = [(20.3, 14.6, 1.0), (62.5, 12.0, 1.0)]
 SIM_QUIRKS = {"orientation_scale": 256.0, "orientation_clockwise": False, "angular_sign": -1.0}
 # For --simulate --sim-real: move like the rovers in FrodoBots-2K
 # (FINDINGS-frodobots-2k.md): 0.79 m/s per unit of linear, wheels 0.8 s behind
-# the command and GPS 1.5 s behind the wheels. The yaw rate is not measured yet,
-# so the simulator's own 60 deg/s per unit is kept.
+# the command and GPS 1.5 s behind the wheels. The gyroscope puts the yaw rate
+# at about 30 deg/s per unit of angular; the simulator's own 60 deg/s is kept
+# here so earlier studies stay comparable, and the studies set 20 to 45 themselves.
 SIM_REAL = {"max_speed_mps": 0.79, "latency_s": 0.8, "gps_delay_s": 1.5}
 # What to assume on a real rover without --calibration. A positive angular
 # turns it left: on 279 FrodoBots-2K rides the GPS course turned against the
@@ -74,6 +78,13 @@ SIM_REAL = {"max_speed_mps": 0.79, "latency_s": 0.8, "gps_delay_s": 1.5}
 # ROS2 bridge and LeRobot's Earth Rover driver both send a left turn as a
 # positive angular. Orientation is still assumed to be degrees clockwise.
 ROVER_DEFAULTS = {"angular_right_positive": False}
+# Steering for a real rover. gain_study.py flew 24 gain settings x 3 missions
+# x 30 seeds on a simulated rover that moves like the recorded ones, turning at
+# 20, 30 or 45 deg/s per unit. At the same cruise, letting angular reach 1.0
+# (not 0.6) and turning in place only above 90 deg (not 60) was faster in all
+# 9 mission/turn-rate groups (sign test p < 0.05 in each, about 3% overall) and
+# needed a third fewer back-up moves; nothing was lost (FINDINGS-frodobots-2k.md).
+ROVER_STEERING = {"max_angular": 1.0, "turn_in_place_deg": 90.0}
 
 
 # --- geometry -------------------------------------------------------------
@@ -411,6 +422,17 @@ class Steering:
         if distance_m < self.slow_radius_m:
             linear *= max(0.5, distance_m / self.slow_radius_m)
         return clamp(linear), angular
+
+
+def make_steering(simulate, cruise=0.6, max_angular=None, turn_in_place_deg=None):
+    """The Steering the command line drives with: ROVER_STEERING on a real rover,
+    the class defaults in the simulator, and either overridden by the options given."""
+    kw = {} if simulate else dict(ROVER_STEERING)
+    if max_angular is not None:
+        kw["max_angular"] = max_angular
+    if turn_in_place_deg is not None:
+        kw["turn_in_place_deg"] = turn_in_place_deg
+    return Steering(cruise=cruise, **kw)
 
 
 class PathFollower:
@@ -1078,6 +1100,12 @@ def main(argv=None):
     p.add_argument("--no-start", action="store_true",
                    help="don't call /start-mission (resume a mission already running)")
     p.add_argument("--cruise", type=float, default=0.6, help="cruise linear command, 0-1")
+    p.add_argument("--max-angular", type=float, default=None,
+                   help="largest angular command, 0-1 (default: 1.0 on a real rover, "
+                        "0.6 in the simulator)")
+    p.add_argument("--turn-in-place", type=float, default=None,
+                   help="turn in place when the heading error is above this many degrees "
+                        "(default: 90 on a real rover, 60 in the simulator)")
     p.add_argument("--report-radius", type=float, default=10.0,
                    help="report a checkpoint from this many metres (server tolerance is 15)")
     p.add_argument("--gps-lag", type=float, default=0.0,
@@ -1101,8 +1129,10 @@ def main(argv=None):
                                          "--calibrate --calibration-out (without it, a real "
                                          "rover is driven with a positive angular turning left)")
     p.add_argument("--vision", action="store_true",
-                   help="steer around obstacles seen by the front camera "
-                        "(a real rover needs Pillow: pip install pillow)")
+                   help="steer around obstacles seen by the front camera (a real rover needs "
+                        "Pillow: pip install pillow). Experimental: on recorded FrodoBots-2K "
+                        "frames it saw obstacles on most clear paths, so a real rover may "
+                        "slow and swerve for nothing")
     p.add_argument("--camera-fov", type=float, default=90.0,
                    help="front camera horizontal field of view, degrees")
     p.add_argument("--camera-height", type=float, default=0.35,
@@ -1161,7 +1191,7 @@ def main(argv=None):
             log_file.write(json.dumps(record) + "\n")
 
     try:
-        steering = Steering(cruise=args.cruise)
+        steering = make_steering(args.simulate, args.cruise, args.max_angular, args.turn_in_place)
         if args.simulate:
             sim_kw = {}
             if args.sim_quirks:
@@ -1185,8 +1215,9 @@ def main(argv=None):
         elif args.calibrate:
             import calibrate
             if not args.simulate:
-                print("calibrating: the rover spins in place for 30 s, then drives straight "
-                      "for 20 s, turns about 90 degrees and drives 20 s more", file=sys.stderr)
+                print("calibrating: the rover spins in place for 30 to 90 s (until it has "
+                      "turned a whole circle), then drives straight for 20 s, turns about "
+                      "90 degrees and drives 20 s more", file=sys.stderr)
             result = calibrate.calibrate(rover, clock=clock, sleep=sleep)
             if args.calibration_out and result["ok"]:
                 with open(args.calibration_out, "w", encoding="utf-8") as f:
