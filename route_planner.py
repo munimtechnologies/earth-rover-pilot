@@ -225,11 +225,52 @@ class OsmPlanner:
         return self.graph.route(lat0, lon0, lat1, lon1)
 
 
+def plan_legs(planner, start, checkpoints):
+    """Plan every leg of a mission before driving it.
+
+    `planner` is called the way Pilot calls it; `checkpoints` are (sequence,
+    lat, lon) in driving order and the first leg starts at `start`. Returns
+    one dict per leg: its sequence, the straight-line and routed length in
+    metres, the detour factor and the route's points. route_m is None where
+    no walkable route was found (the pilot would head straight there).
+    """
+    legs = []
+    lat0, lon0 = start
+    for seq, lat1, lon1 in checkpoints:
+        leg = {"seq": seq, "straight_m": round(haversine_m(lat0, lon0, lat1, lon1), 1),
+               "route_m": None, "detour": None, "points": None}
+        try:
+            points = planner(lat0, lon0, lat1, lon1)
+        except Exception as e:  # note it and go on checking the rest of the mission
+            points = None
+            leg["error"] = str(e)
+        if points and len(points) >= 2:
+            length = path_length_m(points)
+            leg["route_m"] = round(length, 1)
+            leg["points"] = points
+            if leg["straight_m"] >= 1.0:
+                leg["detour"] = round(length / leg["straight_m"], 2)
+        legs.append(leg)
+        lat0, lon0 = lat1, lon1
+    return legs
+
+
 def to_geojson(points, **properties):
     return {"type": "FeatureCollection", "features": [{
         "type": "Feature", "properties": properties,
         "geometry": {"type": "LineString",
                      "coordinates": [[round(lon, 7), round(lat, 7)] for lat, lon in points]}}]}
+
+
+def legs_geojson(legs):
+    """One LineString per routed leg from plan_legs, to check a whole mission on a map."""
+    features = []
+    for leg in legs:
+        if not leg.get("points"):
+            continue
+        props = {k: v for k, v in leg.items() if k != "points"}
+        features.extend(to_geojson(leg["points"], **props)["features"])
+    return {"type": "FeatureCollection", "features": features}
 
 
 def _latlon(text):

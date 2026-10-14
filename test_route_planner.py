@@ -151,6 +151,55 @@ class OsmPlannerTests(unittest.TestCase):
         self.assertIsNone(planner.OsmPlanner()(*pt(0, 0), *pt(0, 100)))
 
 
+class PlanLegsTests(unittest.TestCase):
+    def test_each_leg_is_measured_from_the_last_checkpoint(self):
+        corner, cp1, cp2 = pt(0, 30), pt(40, 30), pt(40, 130)
+
+        def plan(lat0, lon0, lat1, lon1):
+            if (lat1, lon1) == cp1:
+                return [(lat0, lon0), corner, (lat1, lon1)]
+            return None  # no walkable route to the second checkpoint
+
+        legs = planner.plan_legs(plan, pt(0, 0), [(1, *cp1), (2, *cp2)])
+        first, second = legs
+        self.assertEqual(first["seq"], 1)
+        self.assertAlmostEqual(first["straight_m"], 50.0, delta=0.2)
+        self.assertAlmostEqual(first["route_m"], 70.0, delta=0.2)
+        self.assertAlmostEqual(first["detour"], 1.4, delta=0.01)
+        self.assertEqual(len(first["points"]), 3)
+        self.assertEqual(second["seq"], 2)
+        self.assertAlmostEqual(second["straight_m"], 100.0, delta=0.2)
+        self.assertIsNone(second["route_m"])
+        self.assertIsNone(second["detour"])
+        self.assertIsNone(second["points"])
+
+    def test_a_planner_error_is_noted_and_the_check_goes_on(self):
+        calls = []
+
+        def plan(lat0, lon0, lat1, lon1):
+            calls.append(1)
+            if len(calls) == 1:
+                raise RuntimeError("overpass is busy")
+            return [(lat0, lon0), (lat1, lon1)]
+
+        legs = planner.plan_legs(plan, pt(0, 0), [(1, *pt(10, 0)), (2, *pt(20, 0))])
+        self.assertEqual(legs[0]["error"], "overpass is busy")
+        self.assertIsNone(legs[0]["route_m"])
+        self.assertAlmostEqual(legs[1]["route_m"], 10.0, delta=0.2)
+        self.assertNotIn("error", legs[1])
+
+    def test_geojson_has_one_line_per_routed_leg(self):
+        legs = planner.plan_legs(lambda *a: None, pt(0, 0), [(1, *pt(10, 0))])
+        legs += planner.plan_legs(lambda a, b, c, d: [(a, b), (c, d)], pt(10, 0),
+                                  [(2, *pt(20, 0))])
+        gj = planner.legs_geojson(legs)
+        self.assertEqual(len(gj["features"]), 1)
+        props = gj["features"][0]["properties"]
+        self.assertEqual(props["seq"], 2)
+        self.assertNotIn("points", props)
+        self.assertEqual(len(gj["features"][0]["geometry"]["coordinates"]), 2)
+
+
 class CliTests(unittest.TestCase):
     def test_route_command_writes_geojson(self):
         with tempfile.TemporaryDirectory() as d:
@@ -169,6 +218,27 @@ class CliTests(unittest.TestCase):
         self.assertAlmostEqual(feature["properties"]["length_m"], 260.0, delta=1.0)
         lon, lat = feature["geometry"]["coordinates"][0]
         self.assertAlmostEqual(lat, LAT, places=5)
+
+    def test_pilot_checks_every_leg_before_driving(self):
+        # the simulator starts at (LAT, LON), so the demo mission lies on the DETOUR network
+        with tempfile.TemporaryDirectory() as d:
+            osm_path = os.path.join(d, "area.json")
+            out_path = os.path.join(d, "legs.geojson")
+            with open(osm_path, "w", encoding="utf-8") as f:
+                json.dump(DETOUR, f)
+            buf = io.StringIO()
+            with redirect_stdout(buf):
+                code = rp.main(["--simulate", "--check-route", "--osm", osm_path,
+                                "--route-out", out_path])
+            with open(out_path, encoding="utf-8") as f:
+                gj = json.load(f)
+        res = json.loads(buf.getvalue())
+        self.assertEqual(code, 0, res)
+        self.assertTrue(res["ok"])
+        self.assertEqual([leg["seq"] for leg in res["legs"]], [1, 2, 3, 4])
+        self.assertNotIn("points", res["legs"][0])
+        self.assertGreaterEqual(res["route_m"], res["straight_m"] - 1.0)
+        self.assertEqual(len(gj["features"]), 4)
 
 
 if __name__ == "__main__":

@@ -14,10 +14,12 @@ What it adds over a plain bearing-follower:
   when refused, and the last one only after a settled stop. A report that gets
   no answer is checked against the server's checkpoint list before retrying.
 - Optionally, each leg follows a walkable route planned on OpenStreetMap
-  (route_planner.py) instead of heading straight for the checkpoint.
+  (route_planner.py) instead of heading straight for the checkpoint, and
+  every remaining leg can be planned and checked before driving (--check-route).
 - Optionally, the front camera (free_space.py) bends the heading around
   obstacles in the way and slows or stops the rover when nothing is clear.
 - Being stuck (driving with no GPS progress) triggers a back-up-and-turn move.
+- Each leg is summed up (time, reports, recoveries) in the result and the log.
 - A built-in simulator (command latency, GPS noise and dropouts, compass bias,
   obstacles and a rendered front camera) lets the whole loop be tested
   without a rover.
@@ -38,7 +40,7 @@ import time
 import urllib.error
 import urllib.request
 
-__version__ = "0.3.0"
+__version__ = "0.4.0"
 
 EARTH_RADIUS_M = 6371000.0
 M_PER_DEG = EARTH_RADIUS_M * math.pi / 180.0
@@ -366,6 +368,7 @@ class Pilot:
         self.heading = HeadingEstimator()
         self.cmd = (0.0, 0.0)
         self.reached = []
+        self.legs = []
         self.reports = 0
         self.recoveries = 0
         self.plans = 0
@@ -375,6 +378,10 @@ class Pilot:
         self._history = collections.deque()
         self._maneuver = []
         self._last_log_t = None
+        self._leg_t0 = None
+        self._leg_m = None
+        self._leg_reports = 0
+        self._leg_recoveries = 0
 
     def send(self, linear, angular):
         self.cmd = (linear, angular)
@@ -396,6 +403,20 @@ class Pilot:
     def _log(self, event, **fields):
         if self.log:
             self.log(dict({"t": round(self.clock(), 2), "event": event}, **fields))
+
+    def _start_leg(self):
+        self._leg_t0, self._leg_m = self.clock(), None
+        self._leg_reports, self._leg_recoveries = self.reports, self.recoveries
+
+    def _finish_leg(self, seq):
+        """Sum up the leg that just ended at checkpoint `seq`, and start the next one."""
+        leg = {"seq": seq, "elapsed_s": round(self.clock() - self._leg_t0, 1),
+               "straight_m": None if self._leg_m is None else round(self._leg_m, 1),
+               "reports": self.reports - self._leg_reports,
+               "recoveries": self.recoveries - self._leg_recoveries}
+        self.legs.append(leg)
+        self._log("checkpoint", **leg)
+        self._start_leg()
 
     def _stuck(self, t, linear):
         h = self._history
@@ -485,6 +506,7 @@ class Pilot:
             "elapsed_s": round(self.clock() - t0, 1),
             "compass_bias_deg": round(self.heading.bias, 1),
             "calibrations": self.heading.calibrations,
+            "legs": list(self.legs),
         }
         if self.vision is not None:
             out["vision"] = self.vision.stats()
@@ -501,6 +523,7 @@ class Pilot:
             if not remaining:
                 return self._result(False, "no checkpoints left (is MISSION_SLUG set?)", t0, 0)
             next_try = t0
+            self._start_leg()
             while remaining:
                 tick = self.clock()
                 if tick - t0 > timeout_s:
@@ -519,6 +542,8 @@ class Pilot:
                 if self.gps.raw is not None:
                     distance = min(distance, haversine_m(self.gps.raw[0], self.gps.raw[1],
                                                          target_lat, target_lon))
+                if self._leg_m is None:
+                    self._leg_m = distance
                 if distance <= self.report_radius_m and tick >= next_try:
                     if len(remaining) == 1:
                         self._settled_stop()
@@ -529,7 +554,7 @@ class Pilot:
                     if res.get("ok"):
                         remaining.pop(0)
                         self.reached.append(seq)
-                        self._log("checkpoint", seq=seq)
+                        self._finish_leg(seq)
                         if res.get("mission_completed") or not remaining:
                             self.stop()
                             return self._result(True, "mission completed", t0, total)
@@ -553,6 +578,41 @@ class Pilot:
             return self._result(True, "mission completed", t0, total)
         finally:
             self.stop()
+
+
+def check_route(rover, planner, clock=time.monotonic, sleep=time.sleep, fix_timeout_s=10.0):
+    """Plan every remaining leg from where the rover is now, without driving it.
+
+    Returns (summary, legs): a summary to print, and route_planner.plan_legs'
+    legs with their points (for legs_geojson). Nothing is sent to the rover.
+    """
+    import route_planner
+    end = clock() + fix_timeout_s
+    while True:
+        data = rover.data() or {}
+        fix = parse_fix(data.get("latitude"), data.get("longitude"))
+        if fix is not None:
+            break
+        if clock() >= end:
+            return {"ok": False, "reason": "no GPS fix"}, []
+        sleep(0.5)
+    checkpoints, latest = rover.checkpoints()
+    remaining = [c for c in checkpoints if c[0] > latest]
+    if not remaining:
+        return {"ok": False, "reason": "no checkpoints left (is MISSION_SLUG set?)"}, []
+    legs = route_planner.plan_legs(planner, fix, remaining)
+    routed = [leg for leg in legs if leg["route_m"] is not None]
+    missing = len(legs) - len(routed)
+    summary = {
+        "ok": missing == 0,
+        "reason": ("every leg has a walkable route" if missing == 0
+                   else "%d of %d legs have no walkable route" % (missing, len(legs))),
+        "start": [round(fix[0], 7), round(fix[1], 7)],
+        "legs": [{k: v for k, v in leg.items() if k != "points"} for leg in legs],
+        "straight_m": round(sum(leg["straight_m"] for leg in legs), 1),
+        "route_m": round(sum(leg["route_m"] for leg in routed), 1),
+    }
+    return summary, legs
 
 
 # --- the SDK over HTTP ----------------------------------------------------
@@ -838,6 +898,10 @@ def main(argv=None):
                                  "(see: python route_planner.py fetch)")
     p.add_argument("--fetch-osm", action="store_true",
                    help="plan each leg on OpenStreetMap paths fetched from Overpass as needed")
+    p.add_argument("--check-route", action="store_true",
+                   help="don't drive: plan every remaining leg from the rover's position "
+                        "(needs --osm or --fetch-osm) and print a summary")
+    p.add_argument("--route-out", help="with --check-route, also write the legs as GeoJSON here")
     p.add_argument("--vision", action="store_true",
                    help="steer around obstacles seen by the front camera "
                         "(a real rover needs Pillow: pip install pillow)")
@@ -860,9 +924,11 @@ def main(argv=None):
             with open(args.osm, encoding="utf-8") as f:
                 osm = json.load(f)
         planner = route_planner.OsmPlanner(osm=osm, fetch=args.fetch_osm)
+    if args.check_route and planner is None:
+        p.error("--check-route needs --osm or --fetch-osm")
 
     camera = None
-    if args.vision:
+    if args.vision and not args.check_route:
         import free_space
         if not args.simulate:
             try:
@@ -890,13 +956,20 @@ def main(argv=None):
             rover = SdkClient(args.sdk)
             clock, sleep = time.monotonic, time.sleep
             source = SdkCamera(rover, camera) if camera else None
-        vision = free_space.VisionGuard(source, camera=camera) if camera else None
-        pilot = Pilot(rover, clock=clock, sleep=sleep, steering=steering,
-                      report_radius_m=args.report_radius, planner=planner, vision=vision,
-                      log=log)
-        result = pilot.run(start=not args.no_start, timeout_s=args.timeout)
-        if args.simulate and args.obstacles:
-            result["sim_contacts"] = rover.contacts
+        if args.check_route:
+            result, legs = check_route(rover, planner, clock=clock, sleep=sleep)
+            if args.route_out and legs:
+                import route_planner
+                with open(args.route_out, "w", encoding="utf-8") as f:
+                    json.dump(route_planner.legs_geojson(legs), f)
+        else:
+            vision = free_space.VisionGuard(source, camera=camera) if camera else None
+            pilot = Pilot(rover, clock=clock, sleep=sleep, steering=steering,
+                          report_radius_m=args.report_radius, planner=planner, vision=vision,
+                          log=log)
+            result = pilot.run(start=not args.no_start, timeout_s=args.timeout)
+            if args.simulate and args.obstacles:
+                result["sim_contacts"] = rover.contacts
     except KeyboardInterrupt:
         print("interrupted; stop sent to the rover", file=sys.stderr)
         return 130

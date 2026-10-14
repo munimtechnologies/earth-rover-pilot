@@ -11,7 +11,7 @@ import os
 import sys
 import unittest
 import urllib.error
-from contextlib import redirect_stdout
+from contextlib import redirect_stderr, redirect_stdout
 from unittest import mock
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -187,6 +187,33 @@ class SimMissionTests(unittest.TestCase):
                 # the compass reads 25 degrees low; the pilot should have learned +25
                 self.assertLess(abs(rp.wrap180(pilot.heading.bias + sim.compass_error)), 12, res)
 
+    def test_sums_up_each_leg(self):
+        sim, _, res = self.fly(1)
+        legs = res["legs"]
+        self.assertEqual([leg["seq"] for leg in legs], [1, 2, 3, 4])
+        for leg in legs:
+            self.assertGreater(leg["elapsed_s"], 0.0, leg)
+            self.assertGreaterEqual(leg["reports"], 1, leg)
+        self.assertEqual(sum(leg["reports"] for leg in legs), res["reports"])
+        self.assertEqual(sum(leg["recoveries"] for leg in legs), res["recoveries"])
+        self.assertLessEqual(sum(leg["elapsed_s"] for leg in legs), res["elapsed_s"] + 0.5)
+        # the first checkpoint is 50 m from the start; the first fix is within a few metres of it
+        self.assertAlmostEqual(legs[0]["straight_m"], 50.0, delta=8.0)
+
+    def test_resumes_a_mission_already_under_way(self):
+        # as after a restart with --no-start: the server says checkpoints 1 and 2 are done
+        sim = rp.SimRover(rp.DEMO_MISSION, seed=1)
+        sim.next_cp = 2
+        starts = []
+        sim.start_mission = lambda: starts.append(1) or True
+        res = rp.Pilot(sim, clock=sim.clock, sleep=sim.sleep).run(start=False, timeout_s=1500)
+        self.assertTrue(res["ok"], res)
+        self.assertEqual(starts, [])
+        self.assertEqual(res["checkpoints"], 2)
+        self.assertEqual(res["reached"], [3, 4])
+        self.assertEqual([leg["seq"] for leg in res["legs"]], [3, 4])
+        self.assertEqual(sim.next_cp, 4)
+
     def test_survives_frequent_gps_dropouts(self):
         sim, _, res = self.fly(5, gps_dropout=0.2)
         self.assertTrue(res["ok"], res)
@@ -239,6 +266,7 @@ class SimMissionTests(unittest.TestCase):
         res = rp.Pilot(Empty(), clock=lambda: 0.0, sleep=lambda s: None).run()
         self.assertFalse(res["ok"])
         self.assertIn("no checkpoints", res["reason"])
+        self.assertEqual(res["legs"], [])
 
 
 class SimObstacleTests(unittest.TestCase):
@@ -318,6 +346,51 @@ class UnansweredReportTests(unittest.TestCase):
         self.assertFalse(res["ok"])
         self.assertEqual(res["reason"], "timeout")
         self.assertGreaterEqual(rover.reports, 2)
+
+
+def straight_planner(lat, lon, goal_lat, goal_lon):
+    return [(lat, lon), (goal_lat, goal_lon)]
+
+
+class CheckRouteTests(unittest.TestCase):
+    def test_plans_each_remaining_leg_from_the_rovers_position(self):
+        sim = rp.SimRover(rp.DEMO_MISSION, seed=1)
+        sim.next_cp = 1
+        res, legs = rp.check_route(sim, straight_planner, clock=sim.clock, sleep=sim.sleep)
+        self.assertTrue(res["ok"], res)
+        self.assertEqual([leg["seq"] for leg in res["legs"]], [2, 3, 4])
+        for leg in res["legs"]:
+            self.assertAlmostEqual(leg["route_m"], leg["straight_m"], delta=0.11)
+            self.assertNotIn("points", leg)
+        self.assertEqual(len(legs[0]["points"]), 2)
+        # the rover is still at the start, so the first leg is measured from there
+        self.assertAlmostEqual(res["legs"][0]["straight_m"], math.hypot(85.0, 5.0), delta=8.0)
+        self.assertEqual(sim.next_cp, 1)  # nothing was reported
+        self.assertEqual(len(sim.queue), 0)  # and nothing was driven
+
+    def test_legs_without_a_route_fail_the_check(self):
+        sim = rp.SimRover(rp.DEMO_MISSION, seed=1)
+        res, _ = rp.check_route(sim, lambda *a: None, clock=sim.clock, sleep=sim.sleep)
+        self.assertFalse(res["ok"])
+        self.assertIn("4 of 4", res["reason"])
+        self.assertTrue(all(leg["route_m"] is None for leg in res["legs"]))
+        self.assertEqual(res["route_m"], 0.0)
+
+    def test_no_fix_means_no_check(self):
+        class NoFix:
+            def data(self):
+                return {"latitude": 1000, "longitude": 1000}
+
+        c = FakeClock()
+        res, legs = rp.check_route(NoFix(), straight_planner, clock=c.clock, sleep=c.sleep,
+                                   fix_timeout_s=3.0)
+        self.assertFalse(res["ok"])
+        self.assertEqual(res["reason"], "no GPS fix")
+        self.assertEqual(legs, [])
+
+    def test_needs_a_map(self):
+        with redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
+            rp.main(["--simulate", "--check-route"])
 
 
 class FakeResp:
@@ -407,7 +480,9 @@ class MainTests(unittest.TestCase):
         with redirect_stdout(buf):
             code = rp.main(["--simulate", "--seed", "4"])
         self.assertEqual(code, 0, buf.getvalue())
-        self.assertTrue(json.loads(buf.getvalue())["ok"])
+        res = json.loads(buf.getvalue())
+        self.assertTrue(res["ok"])
+        self.assertEqual(len(res["legs"]), 4)
 
     def test_simulate_cli_with_vision(self):
         buf = io.StringIO()
