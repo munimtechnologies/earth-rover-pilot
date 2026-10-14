@@ -1,0 +1,791 @@
+#!/usr/bin/env python3
+"""earth-rover-pilot: a GPS waypoint pilot for the FrodoBots Earth Rover SDK.
+
+It drives an Earth Rover through the checkpoints of an SDK mission (the format
+the Earth Rover Challenge uses) and reports each one with /checkpoint-reached.
+What it adds over a plain bearing-follower:
+
+- GPS readings are checked: the rover's no-fix value (1000), 0/0, NaN and
+  implausible jumps are dropped, and the rest are smoothed.
+- The compass bias is learned while driving: on straight stretches a line is
+  fitted through the GPS fixes, and its direction (the true course) is compared
+  with the mean compass reading over the same stretch.
+- Checkpoints are reported from inside a margin of the 15 m tolerance, retried
+  when refused, and the last one only after a settled stop. A report that gets
+  no answer is checked against the server's checkpoint list before retrying.
+- Optionally, each leg follows a walkable route planned on OpenStreetMap
+  (route_planner.py) instead of heading straight for the checkpoint.
+- Being stuck (driving with no GPS progress) triggers a back-up-and-turn move.
+- A built-in simulator (command latency, GPS noise and dropouts, compass bias)
+  lets the whole loop be tested without a rover.
+
+Standard library only. By MV2 of Munim, Inc.; written with AI agents.
+"""
+
+from __future__ import annotations
+
+import argparse
+import collections
+import json
+import math
+import random
+import sys
+import time
+import urllib.error
+import urllib.request
+
+__version__ = "0.2.0"
+
+EARTH_RADIUS_M = 6371000.0
+M_PER_DEG = EARTH_RADIUS_M * math.pi / 180.0
+NO_FIX = 1000.0  # lat/lon the rover reports when it has no GPS fix
+# The SDK can hold the final /checkpoint-reached for up to 12 s while it
+# confirms the rover has stopped (SAFETY_STOP_CONFIRM_TIMEOUT_S), so wait longer.
+REPORT_TIMEOUT_S = 20.0
+
+# (north_m, east_m) of each checkpoint from the start, for --simulate.
+DEMO_MISSION = [(40.0, 30.0), (85.0, -5.0), (60.0, -60.0), (10.0, -40.0)]
+
+
+# --- geometry -------------------------------------------------------------
+
+def clamp(x, lo=-1.0, hi=1.0):
+    return max(lo, min(hi, x))
+
+
+def wrap180(angle_deg):
+    """Angle in [-180, 180)."""
+    return (angle_deg + 180.0) % 360.0 - 180.0
+
+
+def haversine_m(lat1, lon1, lat2, lon2):
+    p1, p2 = math.radians(lat1), math.radians(lat2)
+    dp = p2 - p1
+    dl = math.radians(lon2 - lon1)
+    a = math.sin(dp / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(dl / 2) ** 2
+    return 2 * EARTH_RADIUS_M * math.asin(min(1.0, math.sqrt(a)))
+
+
+def bearing_deg(lat1, lon1, lat2, lon2):
+    """Initial bearing from point 1 to point 2: 0 = north, clockwise."""
+    p1, p2 = math.radians(lat1), math.radians(lat2)
+    dl = math.radians(lon2 - lon1)
+    x = math.sin(dl) * math.cos(p2)
+    y = math.cos(p1) * math.sin(p2) - math.sin(p1) * math.cos(p2) * math.cos(dl)
+    return math.degrees(math.atan2(x, y)) % 360.0
+
+
+def offset_latlon(lat, lon, north_m, east_m):
+    """The point north_m / east_m metres from (lat, lon); fine over a few km."""
+    return (lat + north_m / M_PER_DEG,
+            lon + east_m / (M_PER_DEG * math.cos(math.radians(lat))))
+
+
+def to_enu(lat0, lon0, lat, lon):
+    """(east, north) metres of (lat, lon) from (lat0, lon0)."""
+    return ((lon - lon0) * M_PER_DEG * math.cos(math.radians(lat0)),
+            (lat - lat0) * M_PER_DEG)
+
+
+def densify(points, step_m=2.0):
+    """The polyline `points` with extra points so none are more than step_m apart."""
+    out = [tuple(points[0])]
+    for (lat0, lon0), (lat1, lon1) in zip(points, points[1:]):
+        n = max(1, int(math.ceil(haversine_m(lat0, lon0, lat1, lon1) / step_m)))
+        for k in range(1, n + 1):
+            f = k / n
+            out.append((lat0 + f * (lat1 - lat0), lon0 + f * (lon1 - lon0)))
+    return out
+
+
+def parse_fix(lat, lon):
+    """(lat, lon) as floats, or None for missing, no-fix or nonsense values."""
+    try:
+        lat, lon = float(lat), float(lon)
+    except (TypeError, ValueError):
+        return None
+    if not (math.isfinite(lat) and math.isfinite(lon)):
+        return None
+    if abs(lat) > 90.0 or abs(lon) > 180.0:  # includes the 1000 no-fix value
+        return None
+    if lat == 0.0 and lon == 0.0:
+        return None
+    return lat, lon
+
+
+def parse_heading(value):
+    """Compass heading in degrees [0, 360), or None."""
+    try:
+        h = float(value)
+    except (TypeError, ValueError):
+        return None
+    if not math.isfinite(h):
+        return None
+    return h % 360.0
+
+
+# --- estimation -----------------------------------------------------------
+
+class GpsFilter:
+    """Drops bad GPS readings and smooths the good ones."""
+
+    def __init__(self, alpha=0.3, max_speed_mps=3.0, jump_slack_m=10.0,
+                 max_age_s=3.0, reset_after=3):
+        self.alpha = alpha
+        self.max_speed_mps = max_speed_mps
+        self.jump_slack_m = jump_slack_m
+        self.max_age_s = max_age_s
+        self.reset_after = reset_after
+        self.lat = self.lon = None  # smoothed position
+        self.raw = None             # last accepted raw reading
+        self.raw_t = None
+        self.fix_t = None           # last time a valid reading was seen
+        self.rejected = 0
+        self._last_rejected = None
+
+    def update(self, lat, lon, t):
+        """Feed one telemetry reading; returns it if it is a new accepted fix."""
+        fix = parse_fix(lat, lon)
+        if fix is None:
+            return None
+        if fix == self.raw:
+            self.fix_t = t
+            return None
+        if self.raw is not None:
+            dt = max(t - self.raw_t, 1e-3)
+            jump = haversine_m(self.raw[0], self.raw[1], fix[0], fix[1])
+            if jump > self.max_speed_mps * dt + self.jump_slack_m:
+                if fix != self._last_rejected:
+                    self._last_rejected = fix
+                    self.rejected += 1
+                if self.rejected < self.reset_after:
+                    return None
+                self.lat = self.lon = None  # the old fix was the bad one
+        self.rejected = 0
+        self._last_rejected = None
+        self.raw, self.raw_t, self.fix_t = fix, t, t
+        if self.lat is None:
+            self.lat, self.lon = fix
+        else:
+            self.lat += self.alpha * (fix[0] - self.lat)
+            self.lon += self.alpha * (fix[1] - self.lon)
+        return fix
+
+    def has_fix(self, t):
+        return (self.lat is not None and self.fix_t is not None
+                and t - self.fix_t <= self.max_age_s)
+
+
+class HeadingEstimator:
+    """Compass heading corrected by a bias learned from GPS course over ground."""
+
+    def __init__(self, min_move_m=10.0, min_points=5, min_speed_mps=0.25,
+                 settle_s=1.0, gain=0.3, max_angular=0.1, min_linear=0.2,
+                 max_spread=0.985, course_ttl_s=5.0):
+        self.min_move_m = min_move_m
+        self.min_points = min_points
+        self.min_speed_mps = min_speed_mps
+        self.settle_s = settle_s
+        self.gain = gain
+        self.max_angular = max_angular
+        self.min_linear = min_linear
+        self.max_spread = max_spread
+        self.course_ttl_s = course_ttl_s
+        self.bias = 0.0  # added to the compass reading
+        self.calibrations = 0
+        self.last_course = None
+        self.last_course_t = None
+        self._angular_lp = 0.0
+        self._straight_since = None
+        self._reset_segment()
+
+    def _reset_segment(self):
+        self._pts = []
+        self._sin = self._cos = 0.0
+        self._n = 0
+
+    def update(self, t, new_fix, compass, linear, angular):
+        """Feed one tick: a new GPS fix (or None), the compass and the command being driven."""
+        self._angular_lp = 0.8 * self._angular_lp + 0.2 * angular
+        if linear < self.min_linear or abs(self._angular_lp) > self.max_angular:
+            self._straight_since = None
+            self._reset_segment()
+            return
+        if self._straight_since is None:
+            self._straight_since = t
+            return
+        if t - self._straight_since < self.settle_s:
+            return
+        if compass is not None:
+            r = math.radians(compass)
+            self._sin += math.sin(r)
+            self._cos += math.cos(r)
+            self._n += 1
+        if new_fix is not None:
+            self._pts.append((t, new_fix[0], new_fix[1]))
+        if len(self._pts) < self.min_points:
+            return
+        _, lat0, lon0 = self._pts[0]
+        _, lat1, lon1 = self._pts[-1]
+        if haversine_m(lat0, lon0, lat1, lon1) < self.min_move_m:
+            return
+        self._fit(t)
+        self._reset_segment()
+
+    def _fit(self, t):
+        t0, lat0, lon0 = self._pts[0]
+        ts, es, ns = [], [], []
+        for ti, lat, lon in self._pts:
+            e, n = to_enu(lat0, lon0, lat, lon)
+            ts.append(ti - t0)
+            es.append(e)
+            ns.append(n)
+        tm = sum(ts) / len(ts)
+        var = sum((x - tm) ** 2 for x in ts)
+        if var <= 0:
+            return
+        ve = sum((x - tm) * e for x, e in zip(ts, es)) / var
+        vn = sum((x - tm) * n for x, n in zip(ts, ns)) / var
+        if math.hypot(ve, vn) < self.min_speed_mps:
+            return
+        course = math.degrees(math.atan2(ve, vn)) % 360.0
+        self.last_course, self.last_course_t = course, t
+        if self._n == 0:
+            return
+        if math.hypot(self._sin, self._cos) / self._n < self.max_spread:
+            return  # the compass wandered too much on this stretch
+        compass_mean = math.degrees(math.atan2(self._sin, self._cos)) % 360.0
+        measured = wrap180(course - compass_mean)
+        if self.calibrations == 0:
+            self.bias = measured
+        else:
+            self.bias = wrap180(self.bias + self.gain * wrap180(measured - self.bias))
+        self.calibrations += 1
+
+    def heading(self, compass, t):
+        """Best heading estimate in degrees, or None if there is nothing to go on."""
+        if compass is not None:
+            return (compass + self.bias) % 360.0
+        if self.last_course is not None and t - self.last_course_t <= self.course_ttl_s:
+            return self.last_course
+        return None
+
+
+# --- control --------------------------------------------------------------
+
+class Steering:
+    """Turns distance and heading error into an SDK (linear, angular) command.
+
+    Positive angular turns right (clockwise), as in the SDK.
+    """
+
+    def __init__(self, cruise=0.6, kp=1.0 / 60.0, max_angular=0.6,
+                 turn_in_place_deg=60.0, slow_radius_m=8.0):
+        self.cruise = cruise
+        self.kp = kp
+        self.max_angular = max_angular
+        self.turn_in_place_deg = turn_in_place_deg
+        self.slow_radius_m = slow_radius_m
+
+    def command(self, distance_m, error_deg):
+        angular = clamp(self.kp * error_deg, -self.max_angular, self.max_angular)
+        if abs(error_deg) > self.turn_in_place_deg:
+            return 0.0, angular
+        linear = self.cruise * max(0.25, math.cos(math.radians(error_deg)))
+        if distance_m < self.slow_radius_m:
+            linear *= max(0.5, distance_m / self.slow_radius_m)
+        return clamp(linear), angular
+
+
+class PathFollower:
+    """Pure pursuit along a planned path.
+
+    It aims at the point `lookahead_m` ahead of the rover's place on the path,
+    and only moves forward along it, so a path that doubles back is still
+    followed in order.
+    """
+
+    def __init__(self, points, lookahead_m=8.0, search_m=60.0, step_m=2.0):
+        self.points = densify(points, step_m)
+        self.lookahead_n = max(1, int(round(lookahead_m / step_m)))
+        self.window = max(2, int(round(search_m / step_m)))
+        self.i = 0
+
+    def target(self, lat, lon):
+        """The (lat, lon) to steer at, and the rover's distance from the path."""
+        end = min(len(self.points), self.i + self.window)
+        best, best_d = self.i, math.inf
+        for k in range(self.i, end):
+            d = haversine_m(lat, lon, *self.points[k])
+            if d < best_d:
+                best, best_d = k, d
+        self.i = best
+        return self.points[min(len(self.points) - 1, best + self.lookahead_n)], best_d
+
+
+class Pilot:
+    """Flies an SDK mission: steer to each checkpoint in turn and report it.
+
+    `planner`, if given, is called as planner(lat, lon, checkpoint_lat,
+    checkpoint_lon) at the start of each leg and returns a list of (lat, lon)
+    points to follow, or None to head straight for the checkpoint.
+    """
+
+    def __init__(self, rover, clock=time.monotonic, sleep=time.sleep,
+                 steering=None, rate_hz=10.0, report_radius_m=10.0,
+                 hold_radius_m=3.0, retry_s=2.0, settle_s=1.5,
+                 stuck_window_s=10.0, stuck_min_move_m=1.5, planner=None,
+                 replan_m=30.0, replan_s=30.0, log=None):
+        self.rover = rover
+        self.clock = clock
+        self.sleep = sleep
+        self.steering = steering or Steering()
+        self.period = 1.0 / rate_hz
+        self.report_radius_m = report_radius_m
+        self.hold_radius_m = hold_radius_m
+        self.retry_s = retry_s
+        self.settle_s = settle_s
+        self.stuck_window_s = stuck_window_s
+        self.stuck_min_move_m = stuck_min_move_m
+        self.planner = planner
+        self.replan_m = replan_m
+        self.replan_s = replan_s
+        self.log = log
+        self.gps = GpsFilter()
+        self.heading = HeadingEstimator()
+        self.cmd = (0.0, 0.0)
+        self.reached = []
+        self.reports = 0
+        self.recoveries = 0
+        self.plans = 0
+        self.path = None
+        self._path_seq = None
+        self._plan_t = None
+        self._history = collections.deque()
+        self._maneuver = []
+        self._last_log_t = None
+
+    def send(self, linear, angular):
+        self.cmd = (linear, angular)
+        self.rover.control(linear, angular)
+
+    def stop(self):
+        self.send(0.0, 0.0)
+
+    def _wait(self, tick):
+        self.sleep(max(0.0, self.period - (self.clock() - tick)))
+
+    def _settled_stop(self):
+        end = self.clock() + self.settle_s
+        while self.clock() < end:
+            tick = self.clock()
+            self.stop()
+            self._wait(tick)
+
+    def _log(self, event, **fields):
+        if self.log:
+            self.log(dict({"t": round(self.clock(), 2), "event": event}, **fields))
+
+    def _stuck(self, t, linear):
+        h = self._history
+        h.append((t, self.gps.lat, self.gps.lon, linear))
+        while t - h[0][0] > self.stuck_window_s:
+            h.popleft()
+        if t - h[0][0] < 0.9 * self.stuck_window_s:
+            return False
+        if sum(x[3] for x in h) / len(h) < 0.4 * self.steering.cruise:
+            return False
+        return haversine_m(h[0][1], h[0][2], self.gps.lat, self.gps.lon) < self.stuck_min_move_m
+
+    def _start_recovery(self, t):
+        self.recoveries += 1
+        turn = 0.6 if self.recoveries % 2 else -0.6
+        self._maneuver = [(t + 2.0, -0.4, 0.0), (t + 3.5, 0.0, turn), (t + 6.0, 0.5, 0.0)]
+        self._history.clear()
+        self._log("recovery", n=self.recoveries)
+
+    def _plan(self, t, seq, lat, lon):
+        self._path_seq, self._plan_t = seq, t
+        try:
+            points = self.planner(self.gps.lat, self.gps.lon, lat, lon)
+        except Exception as e:  # a failed plan must not stop the rover; it heads straight on
+            points = None
+            self._log("plan-failed", seq=seq, error=str(e))
+        self.path = PathFollower(points) if points and len(points) >= 2 else None
+        self.plans += 1
+        self._log("plan", seq=seq, points=len(points) if points else 0)
+
+    def _aim(self, t, seq, lat, lon):
+        """Where to steer now: a point along the planned path, or the checkpoint itself."""
+        if self.planner is None:
+            return lat, lon
+        stale = self._plan_t is not None and t - self._plan_t >= self.replan_s
+        if self._path_seq != seq or (self.path is None and stale):
+            self._plan(t, seq, lat, lon)
+        if self.path is None:
+            return lat, lon
+        aim, off = self.path.target(self.gps.lat, self.gps.lon)
+        if off > self.replan_m and stale:
+            self._plan(t, seq, lat, lon)
+            if self.path is None:
+                return lat, lon
+            aim, _ = self.path.target(self.gps.lat, self.gps.lon)
+        return aim
+
+    def _steer(self, t, distance, aim_lat, aim_lon, compass):
+        while self._maneuver and t >= self._maneuver[0][0]:
+            self._maneuver.pop(0)
+        if self._maneuver:
+            return self._maneuver[0][1], self._maneuver[0][2]
+        if distance < self.hold_radius_m:
+            self._history.clear()
+            return 0.0, 0.0
+        heading = self.heading.heading(compass, t)
+        if heading is None:
+            # No compass and no recent course: drive straight to learn one from GPS.
+            linear, angular = 0.5 * self.steering.cruise, 0.0
+        else:
+            target = bearing_deg(self.gps.lat, self.gps.lon, aim_lat, aim_lon)
+            linear, angular = self.steering.command(distance, wrap180(target - heading))
+        if self._stuck(t, linear):
+            self._start_recovery(t)
+            return self._maneuver[0][1], self._maneuver[0][2]
+        return linear, angular
+
+    def _confirmed(self, seq):
+        """After a report got no answer, ask the server whether it counted anyway."""
+        _, latest = self.rover.checkpoints()
+        return latest >= seq
+
+    def _result(self, ok, reason, t0, total):
+        return {
+            "ok": ok,
+            "reason": reason,
+            "reached": list(self.reached),
+            "checkpoints": total,
+            "reports": self.reports,
+            "recoveries": self.recoveries,
+            "plans": self.plans,
+            "elapsed_s": round(self.clock() - t0, 1),
+            "compass_bias_deg": round(self.heading.bias, 1),
+            "calibrations": self.heading.calibrations,
+        }
+
+    def run(self, start=True, timeout_s=3600.0):
+        t0 = self.clock()
+        try:
+            if start and not self.rover.start_mission():
+                return self._result(False, "start-mission failed", t0, 0)
+            checkpoints, latest = self.rover.checkpoints()
+            remaining = [c for c in checkpoints if c[0] > latest]
+            total = len(remaining)
+            if not remaining:
+                return self._result(False, "no checkpoints left (is MISSION_SLUG set?)", t0, 0)
+            next_try = t0
+            while remaining:
+                tick = self.clock()
+                if tick - t0 > timeout_s:
+                    return self._result(False, "timeout", t0, total)
+                data = self.rover.data() or {}
+                new_fix = self.gps.update(data.get("latitude"), data.get("longitude"), tick)
+                compass = parse_heading(data.get("orientation"))
+                self.heading.update(tick, new_fix, compass, *self.cmd)
+                if not self.gps.has_fix(tick):
+                    self._history.clear()
+                    self.stop()
+                    self._wait(tick)
+                    continue
+                seq, target_lat, target_lon = remaining[0]
+                distance = haversine_m(self.gps.lat, self.gps.lon, target_lat, target_lon)
+                if self.gps.raw is not None:
+                    distance = min(distance, haversine_m(self.gps.raw[0], self.gps.raw[1],
+                                                         target_lat, target_lon))
+                if distance <= self.report_radius_m and tick >= next_try:
+                    if len(remaining) == 1:
+                        self._settled_stop()
+                    res = self.rover.checkpoint_reached()
+                    self.reports += 1
+                    if not res.get("ok") and res.get("status") == 0 and self._confirmed(seq):
+                        res = dict(res, ok=True)
+                    if res.get("ok"):
+                        remaining.pop(0)
+                        self.reached.append(seq)
+                        self._log("checkpoint", seq=seq)
+                        if res.get("mission_completed") or not remaining:
+                            self.stop()
+                            return self._result(True, "mission completed", t0, total)
+                        continue
+                    self._log("refused", seq=seq, status=res.get("status"),
+                              server_distance_m=res.get("distance"))
+                    next_try = self.clock() + self.retry_s
+                aim_lat, aim_lon = self._aim(tick, seq, target_lat, target_lon)
+                linear, angular = self._steer(tick, distance, aim_lat, aim_lon, compass)
+                self.send(linear, angular)
+                if self._last_log_t is None or tick - self._last_log_t >= 1.0:
+                    self._last_log_t = tick
+                    self._log("tick", seq=seq, lat=round(self.gps.lat, 7),
+                              lon=round(self.gps.lon, 7), dist_m=round(distance, 1),
+                              bias=round(self.heading.bias, 1),
+                              cmd=[round(linear, 2), round(angular, 2)])
+                self._wait(tick)
+            return self._result(True, "mission completed", t0, total)
+        finally:
+            self.stop()
+
+
+# --- the SDK over HTTP ----------------------------------------------------
+
+def _json(raw):
+    try:
+        out = json.loads((raw or b"{}").decode("utf-8") or "{}")
+    except (ValueError, UnicodeDecodeError):
+        return {}
+    return out if isinstance(out, dict) else {}
+
+
+def _find_key(obj, key):
+    if isinstance(obj, dict):
+        if key in obj:
+            return obj[key]
+        obj = list(obj.values())
+    if isinstance(obj, list):
+        for item in obj:
+            found = _find_key(item, key)
+            if found is not None:
+                return found
+    return None
+
+
+class SdkClient:
+    """Talks to a running earth-rovers-sdk server (default http://localhost:8000)."""
+
+    def __init__(self, base_url="http://localhost:8000", timeout=5.0):
+        self.base_url = base_url.rstrip("/")
+        self.timeout = timeout
+
+    def _req(self, method, path, body=None, timeout=None):
+        data = None if body is None else json.dumps(body).encode("utf-8")
+        req = urllib.request.Request(self.base_url + path, data=data, method=method,
+                                     headers={"Content-Type": "application/json"})
+        try:
+            with urllib.request.urlopen(req, timeout=timeout or self.timeout) as resp:
+                return resp.status, _json(resp.read())
+        except urllib.error.HTTPError as e:
+            return e.code, _json(e.read())
+        except (urllib.error.URLError, OSError, ValueError):
+            return 0, {}
+
+    def data(self):
+        status, body = self._req("GET", "/data")
+        return body if status == 200 else {}
+
+    def control(self, linear, angular):
+        self._req("POST", "/control", {"command": {
+            "linear": round(clamp(linear), 3), "angular": round(clamp(angular), 3), "lamp": 0}})
+
+    def start_mission(self):
+        status, _ = self._req("POST", "/start-mission", {})
+        return status == 200
+
+    def checkpoints(self):
+        _, body = self._req("GET", "/checkpoints-list")
+        out = []
+        for cp in body.get("checkpoints_list") or []:
+            try:
+                out.append((int(cp["sequence"]), float(cp["latitude"]), float(cp["longitude"])))
+            except (KeyError, TypeError, ValueError):
+                continue
+        out.sort()
+        try:
+            latest = int(body.get("latest_scanned_checkpoint") or 0)
+        except (TypeError, ValueError):
+            latest = 0
+        return out, latest
+
+    def checkpoint_reached(self):
+        status, body = self._req("POST", "/checkpoint-reached", {},
+                                 timeout=max(self.timeout, REPORT_TIMEOUT_S))
+        if status == 200:
+            return {"ok": True, "status": 200, "distance": None,
+                    "mission_completed": bool(body.get("mission_completed"))}
+        distance = _find_key(body, "proximate_distance_to_checkpoint")
+        try:
+            distance = float(distance)
+        except (TypeError, ValueError):
+            distance = None
+        return {"ok": False, "status": status, "distance": distance, "mission_completed": False}
+
+
+# --- simulator ------------------------------------------------------------
+
+class SimRover:
+    """Offline stand-in for the SDK: a skid-steer rover with the usual troubles.
+
+    Commands take effect after `latency_s`; GPS updates every `gps_period_s`
+    with noise and occasional no-fix readings; the compass is off by
+    `compass_error_deg`. Checkpoints are judged on the reported GPS, like the
+    real server, and the last one is refused (503) unless the rover is stopped.
+    """
+
+    def __init__(self, checkpoints_m, seed=0, start=(37.8719, -122.2585),
+                 heading_deg=200.0, max_speed_mps=1.2, max_yaw_dps=60.0,
+                 latency_s=0.5, gps_noise_m=1.5, gps_period_s=1.0,
+                 gps_dropout=0.05, compass_error_deg=-25.0, compass_noise_deg=3.0,
+                 tolerance_m=15.0, dt=0.1, blocked_until_s=0.0):
+        self.rng = random.Random(seed)
+        self.lat0, self.lon0 = start
+        self.checkpoint_coords = [offset_latlon(self.lat0, self.lon0, n, e)
+                                  for n, e in checkpoints_m]
+        self.heading = heading_deg % 360.0
+        self.max_speed_mps = max_speed_mps
+        self.max_yaw_dps = max_yaw_dps
+        self.latency_s = latency_s
+        self.gps_noise_m = gps_noise_m
+        self.gps_period_s = gps_period_s
+        self.gps_dropout = gps_dropout
+        self.compass_error = compass_error_deg
+        self.compass_noise_deg = compass_noise_deg
+        self.tolerance_m = tolerance_m
+        self.dt = dt
+        self.blocked_until_s = blocked_until_s
+        self.t = 0.0
+        self.east = self.north = 0.0
+        self.queue = collections.deque()
+        self.applied = (0.0, 0.0)
+        self.last_cmd_t = 0.0
+        self.next_cp = 0
+        self.reverse_seen = False
+        self._sample_gps()
+
+    def _sample_gps(self):
+        if self.rng.random() < self.gps_dropout:
+            self.gps = (NO_FIX, NO_FIX)
+        else:
+            self.gps = offset_latlon(self.lat0, self.lon0,
+                                     self.north + self.rng.gauss(0, self.gps_noise_m),
+                                     self.east + self.rng.gauss(0, self.gps_noise_m))
+        self._next_gps_t = self.t + self.gps_period_s
+
+    def _step(self):
+        while self.queue and self.queue[0][0] <= self.t:
+            _, linear, angular = self.queue.popleft()
+            self.applied = (linear, angular)
+        if self.t - self.last_cmd_t > 3.0:  # the SDK's dead-man stop
+            self.applied = (0.0, 0.0)
+        linear, angular = self.applied
+        if linear < 0:
+            self.reverse_seen = True
+        self.heading = (self.heading + angular * self.max_yaw_dps * self.dt) % 360.0
+        if self.t >= self.blocked_until_s:
+            v = linear * self.max_speed_mps * self.dt
+            r = math.radians(self.heading)
+            self.east += v * math.sin(r)
+            self.north += v * math.cos(r)
+        self.t += self.dt
+        if self.t >= self._next_gps_t - 1e-9:
+            self._sample_gps()
+
+    # clock/sleep replace time.monotonic/time.sleep for the Pilot
+    def clock(self):
+        return self.t
+
+    def sleep(self, seconds):
+        for _ in range(max(1, int(round(seconds / self.dt)))):
+            self._step()
+
+    # the SDK surface the Pilot uses
+    def control(self, linear, angular):
+        self.last_cmd_t = self.t
+        self.queue.append((self.t + self.latency_s, clamp(float(linear)), clamp(float(angular))))
+
+    def data(self):
+        compass = (self.heading + self.compass_error
+                   + self.rng.gauss(0, self.compass_noise_deg)) % 360.0
+        return {"latitude": self.gps[0], "longitude": self.gps[1], "orientation": compass,
+                "gps_signal": 0 if self.gps[0] == NO_FIX else 30, "timestamp": self.t}
+
+    def start_mission(self):
+        return True
+
+    def checkpoints(self):
+        return ([(i + 1, lat, lon) for i, (lat, lon) in enumerate(self.checkpoint_coords)],
+                self.next_cp)
+
+    def checkpoint_reached(self):
+        total = len(self.checkpoint_coords)
+        if self.next_cp >= total:
+            return {"ok": False, "status": 400, "distance": None, "mission_completed": True}
+        fix = parse_fix(*self.gps)
+        if fix is None:
+            return {"ok": False, "status": 400, "distance": None, "mission_completed": False}
+        if self.next_cp == total - 1 and self.applied != (0.0, 0.0):
+            return {"ok": False, "status": 503, "distance": None, "mission_completed": False}
+        distance = haversine_m(fix[0], fix[1], *self.checkpoint_coords[self.next_cp])
+        if distance > self.tolerance_m:
+            return {"ok": False, "status": 400, "distance": distance, "mission_completed": False}
+        self.next_cp += 1
+        return {"ok": True, "status": 200, "distance": None,
+                "mission_completed": self.next_cp == total}
+
+
+# --- command line ---------------------------------------------------------
+
+def main(argv=None):
+    p = argparse.ArgumentParser(
+        description="GPS waypoint pilot for the FrodoBots Earth Rover SDK.")
+    p.add_argument("--sdk", default="http://localhost:8000",
+                   help="URL of the running earth-rovers-sdk server")
+    p.add_argument("--simulate", action="store_true",
+                   help="fly the built-in demo mission in the simulator instead")
+    p.add_argument("--seed", type=int, default=1, help="simulator random seed")
+    p.add_argument("--no-start", action="store_true",
+                   help="don't call /start-mission (resume a mission already running)")
+    p.add_argument("--cruise", type=float, default=0.6, help="cruise linear command, 0-1")
+    p.add_argument("--report-radius", type=float, default=10.0,
+                   help="report a checkpoint from this many metres (server tolerance is 15)")
+    p.add_argument("--osm", help="plan each leg on this saved Overpass JSON "
+                                 "(see: python route_planner.py fetch)")
+    p.add_argument("--fetch-osm", action="store_true",
+                   help="plan each leg on OpenStreetMap paths fetched from Overpass as needed")
+    p.add_argument("--timeout", type=float, default=3600.0, help="give up after this many seconds")
+    p.add_argument("--log", help="append a JSON-lines log of the run to this file")
+    p.add_argument("--version", action="version", version=__version__)
+    args = p.parse_args(argv)
+
+    planner = None
+    if args.osm or args.fetch_osm:
+        import route_planner
+        osm = None
+        if args.osm:
+            with open(args.osm, encoding="utf-8") as f:
+                osm = json.load(f)
+        planner = route_planner.OsmPlanner(osm=osm, fetch=args.fetch_osm)
+
+    log_file = open(args.log, "a", encoding="utf-8") if args.log else None
+
+    def log(record):
+        if log_file:
+            log_file.write(json.dumps(record) + "\n")
+
+    try:
+        steering = Steering(cruise=args.cruise)
+        if args.simulate:
+            sim = SimRover(DEMO_MISSION, seed=args.seed)
+            pilot = Pilot(sim, clock=sim.clock, sleep=sim.sleep, steering=steering,
+                          report_radius_m=args.report_radius, planner=planner, log=log)
+        else:
+            pilot = Pilot(SdkClient(args.sdk), steering=steering,
+                          report_radius_m=args.report_radius, planner=planner, log=log)
+        result = pilot.run(start=not args.no_start, timeout_s=args.timeout)
+    except KeyboardInterrupt:
+        print("interrupted; stop sent to the rover", file=sys.stderr)
+        return 130
+    finally:
+        if log_file:
+            log_file.close()
+    print(json.dumps(result, indent=2))
+    return 0 if result["ok"] else 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())
