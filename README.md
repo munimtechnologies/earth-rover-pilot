@@ -205,4 +205,4 @@ The tests cover:
 
 ## License
 
-MIT. Not affiliated with FrodoBots, BitRobot or the Earth Rover Challenge organisers.
+Apache-2.0. Not affiliated with FrodoBots, BitRobot or the Earth Rover Challenge organisers.
