@@ -18,6 +18,8 @@ What it adds over a plain bearing-follower:
   every remaining leg can be planned and checked before driving (--check-route).
 - Optionally, the front camera (free_space.py) bends the heading around
   obstacles in the way and slows or stops the rover when nothing is clear.
+- Which way orientation and angular run can be measured on the rover first
+  (calibrate.py, --calibrate) and applied to the mission (--calibration).
 - Being stuck (driving with no GPS progress) triggers a back-up-and-turn move.
 - Each leg is summed up (time, reports, recoveries) in the result and the log.
 - A built-in simulator (command latency, GPS noise and dropouts, compass bias,
@@ -40,7 +42,7 @@ import time
 import urllib.error
 import urllib.request
 
-__version__ = "0.4.0"
+__version__ = "0.5.0"
 
 EARTH_RADIUS_M = 6371000.0
 M_PER_DEG = EARTH_RADIUS_M * math.pi / 180.0
@@ -53,6 +55,9 @@ REPORT_TIMEOUT_S = 20.0
 DEMO_MISSION = [(40.0, 30.0), (85.0, -5.0), (60.0, -60.0), (10.0, -40.0)]
 # (north_m, east_m, radius_m) hedges on the first two legs, for --simulate --obstacles.
 DEMO_OBSTACLES = [(20.3, 14.6, 1.0), (62.5, 12.0, 1.0)]
+# For --simulate --sim-quirks: orientation reads 0-255 counter-clockwise and a
+# positive angular turns left.
+SIM_QUIRKS = {"orientation_scale": 256.0, "orientation_clockwise": False, "angular_sign": -1.0}
 
 
 # --- geometry -------------------------------------------------------------
@@ -130,6 +135,46 @@ def parse_heading(value):
     if not math.isfinite(h):
         return None
     return h % 360.0
+
+
+class Conventions:
+    """How a rover's /data orientation and /control angular run.
+
+    The defaults are what the pilot assumes without a calibration: orientation
+    in degrees clockwise from north, and a positive angular turning right.
+    calibrate.py measures them on the rover; bias_deg, if known, is the
+    compass offset to start from before the pilot has learned its own.
+    """
+
+    def __init__(self, orientation_scale=360.0, orientation_clockwise=True,
+                 angular_right_positive=True, bias_deg=None):
+        self.orientation_scale = float(orientation_scale)
+        self.orientation_clockwise = bool(orientation_clockwise)
+        self.angular_right_positive = bool(angular_right_positive)
+        self.bias_deg = None if bias_deg is None else float(bias_deg)
+
+    @classmethod
+    def from_dict(cls, d):
+        return cls(d.get("orientation_scale", 360.0), d.get("orientation_clockwise", True),
+                   d.get("angular_right_positive", True), d.get("bias_deg"))
+
+    def heading(self, value):
+        """An orientation reading as degrees [0, 360) clockwise from north, or None."""
+        try:
+            h = float(value)
+        except (TypeError, ValueError):
+            return None
+        if not math.isfinite(h):
+            return None
+        if self.orientation_scale != 360.0:
+            h = h * 360.0 / self.orientation_scale
+        if not self.orientation_clockwise:
+            h = -h
+        return h % 360.0
+
+    def angular(self, angular):
+        """The /control angular that turns the way `angular` (positive = right) means."""
+        return angular if self.angular_right_positive else 0.0 - angular
 
 
 # --- estimation -----------------------------------------------------------
@@ -284,7 +329,8 @@ class HeadingEstimator:
 class Steering:
     """Turns distance and heading error into an SDK (linear, angular) command.
 
-    Positive angular turns right (clockwise), as in the SDK.
+    Positive angular turns right (clockwise); Conventions converts it for a
+    rover that turns the other way.
     """
 
     def __init__(self, cruise=0.6, kp=1.0 / 60.0, max_angular=0.6,
@@ -341,13 +387,16 @@ class Pilot:
     `vision`, if given, is called as vision.advise(t, error_deg, distance_m)
     while driving forward and returns the (error_deg, speed_scale) to use
     instead (free_space.VisionGuard).
+
+    `conventions` (Conventions) says how this rover's orientation and angular
+    run; by default, degrees clockwise and positive angular turning right.
     """
 
     def __init__(self, rover, clock=time.monotonic, sleep=time.sleep,
                  steering=None, rate_hz=10.0, report_radius_m=10.0,
                  hold_radius_m=3.0, retry_s=2.0, settle_s=1.5,
                  stuck_window_s=10.0, stuck_min_move_m=1.5, planner=None,
-                 replan_m=30.0, replan_s=30.0, vision=None, log=None):
+                 replan_m=30.0, replan_s=30.0, vision=None, conventions=None, log=None):
         self.rover = rover
         self.clock = clock
         self.sleep = sleep
@@ -363,9 +412,12 @@ class Pilot:
         self.replan_m = replan_m
         self.replan_s = replan_s
         self.vision = vision
+        self.conventions = conventions or Conventions()
         self.log = log
         self.gps = GpsFilter()
         self.heading = HeadingEstimator()
+        if self.conventions.bias_deg is not None:
+            self.heading.bias = self.conventions.bias_deg
         self.cmd = (0.0, 0.0)
         self.reached = []
         self.legs = []
@@ -385,7 +437,7 @@ class Pilot:
 
     def send(self, linear, angular):
         self.cmd = (linear, angular)
-        self.rover.control(linear, angular)
+        self.rover.control(linear, self.conventions.angular(angular))
 
     def stop(self):
         self.send(0.0, 0.0)
@@ -530,7 +582,7 @@ class Pilot:
                     return self._result(False, "timeout", t0, total)
                 data = self.rover.data() or {}
                 new_fix = self.gps.update(data.get("latitude"), data.get("longitude"), tick)
-                compass = parse_heading(data.get("orientation"))
+                compass = self.conventions.heading(data.get("orientation"))
                 self.heading.update(tick, new_fix, compass, *self.cmd)
                 if not self.gps.has_fix(tick):
                     self._history.clear()
@@ -622,6 +674,8 @@ def _json(raw):
         out = json.loads((raw or b"{}").decode("utf-8") or "{}")
     except (ValueError, UnicodeDecodeError):
         return {}
+    if isinstance(out, list):
+        return {"items": out}
     return out if isinstance(out, dict) else {}
 
 
@@ -677,6 +731,17 @@ class SdkClient:
             return base64.b64decode(frame)
         except ValueError:
             return None
+
+    def missions(self):
+        """The missions GET /missions lists for this bot (each with slug,
+        distance_in_m and checkpoints_count), or None if the call failed."""
+        status, body = self._req("GET", "/missions")
+        if status != 200:
+            return None
+        for key in ("missions", "items", "data"):
+            if isinstance(body.get(key), list):
+                return [m for m in body[key] if isinstance(m, dict)]
+        return []
 
     def start_mission(self):
         status, _ = self._req("POST", "/start-mission", {})
@@ -737,6 +802,9 @@ class SimRover:
     real server, and the last one is refused (503) unless the rover is stopped.
     `obstacles` are (north_m, east_m, radius_m) hedges the rover can't drive
     through; camera_frame() renders what its front camera would see.
+    By default orientation reads degrees clockwise and a positive angular
+    turns right; `orientation_scale`, `orientation_clockwise` and
+    `angular_sign` (-1 turns left) make a rover that doesn't.
     """
 
     def __init__(self, checkpoints_m, seed=0, start=(37.8719, -122.2585),
@@ -744,7 +812,8 @@ class SimRover:
                  latency_s=0.5, gps_noise_m=1.5, gps_period_s=1.0,
                  gps_dropout=0.05, compass_error_deg=-25.0, compass_noise_deg=3.0,
                  tolerance_m=15.0, dt=0.1, blocked_until_s=0.0, obstacles=(),
-                 rover_radius_m=0.2, obstacle_height_m=1.0):
+                 rover_radius_m=0.2, obstacle_height_m=1.0, orientation_scale=360.0,
+                 orientation_clockwise=True, angular_sign=1.0):
         self.rng = random.Random(seed)
         self.seed = seed
         self.lat0, self.lon0 = start
@@ -765,6 +834,9 @@ class SimRover:
         self.obstacles = list(obstacles)
         self.rover_radius_m = rover_radius_m
         self.obstacle_height_m = obstacle_height_m
+        self.orientation_scale = orientation_scale
+        self.orientation_clockwise = orientation_clockwise
+        self.angular_sign = angular_sign
         self.contacts = 0  # steps on which an obstacle stopped the rover
         self.min_gap = math.inf  # closest the rover's centre came to an obstacle's edge
         self.t = 0.0
@@ -804,7 +876,7 @@ class SimRover:
         linear, angular = self.applied
         if linear < 0:
             self.reverse_seen = True
-        self.heading = (self.heading + angular * self.max_yaw_dps * self.dt) % 360.0
+        self.heading = (self.heading + self.angular_sign * angular * self.max_yaw_dps * self.dt) % 360.0
         if self.t >= self.blocked_until_s:
             v = linear * self.max_speed_mps * self.dt
             r = math.radians(self.heading)
@@ -835,6 +907,10 @@ class SimRover:
     def data(self):
         compass = (self.heading + self.compass_error
                    + self.rng.gauss(0, self.compass_noise_deg)) % 360.0
+        if not self.orientation_clockwise:
+            compass = -compass % 360.0
+        if self.orientation_scale != 360.0:
+            compass = compass * self.orientation_scale / 360.0
         return {"latitude": self.gps[0], "longitude": self.gps[1], "orientation": compass,
                 "gps_signal": 0 if self.gps[0] == NO_FIX else 30, "timestamp": self.t}
 
@@ -889,6 +965,11 @@ def main(argv=None):
     p.add_argument("--seed", type=int, default=1, help="simulator random seed")
     p.add_argument("--obstacles", action="store_true",
                    help="(simulator) put two hedges on the demo route")
+    p.add_argument("--sim-quirks", action="store_true",
+                   help="(simulator) orientation reads 0-255 counter-clockwise and a "
+                        "positive angular turns left")
+    p.add_argument("--list-missions", action="store_true",
+                   help="print the missions the SDK lists for this bot (GET /missions) and exit")
     p.add_argument("--no-start", action="store_true",
                    help="don't call /start-mission (resume a mission already running)")
     p.add_argument("--cruise", type=float, default=0.6, help="cruise linear command, 0-1")
@@ -902,6 +983,13 @@ def main(argv=None):
                    help="don't drive: plan every remaining leg from the rover's position "
                         "(needs --osm or --fetch-osm) and print a summary")
     p.add_argument("--route-out", help="with --check-route, also write the legs as GeoJSON here")
+    p.add_argument("--calibrate", action="store_true",
+                   help="don't run the mission: spin in place, drive two short straights and "
+                        "work out which way orientation and angular run (the rover moves "
+                        "about 20 m; needs open ground)")
+    p.add_argument("--calibration-out", help="with --calibrate, save a successful result here")
+    p.add_argument("--calibration", help="drive with the conventions saved by "
+                                         "--calibrate --calibration-out")
     p.add_argument("--vision", action="store_true",
                    help="steer around obstacles seen by the front camera "
                         "(a real rover needs Pillow: pip install pillow)")
@@ -916,6 +1004,13 @@ def main(argv=None):
     p.add_argument("--version", action="version", version=__version__)
     args = p.parse_args(argv)
 
+    if args.list_missions:
+        if args.simulate:
+            p.error("--list-missions needs a real SDK server")
+        missions = SdkClient(args.sdk).missions()
+        print(json.dumps({"ok": missions is not None, "missions": missions or []}, indent=2))
+        return 0 if missions is not None else 1
+
     planner = None
     if args.osm or args.fetch_osm:
         import route_planner
@@ -927,8 +1022,16 @@ def main(argv=None):
     if args.check_route and planner is None:
         p.error("--check-route needs --osm or --fetch-osm")
 
+    conventions = None
+    if args.calibration:
+        with open(args.calibration, encoding="utf-8") as f:
+            saved = json.load(f)
+        if not isinstance(saved, dict) or not saved.get("ok"):
+            p.error("%s is not a successful calibration" % args.calibration)
+        conventions = Conventions.from_dict(saved)
+
     camera = None
-    if args.vision and not args.check_route:
+    if args.vision and not (args.check_route or args.calibrate):
         import free_space
         if not args.simulate:
             try:
@@ -949,7 +1052,8 @@ def main(argv=None):
         steering = Steering(cruise=args.cruise)
         if args.simulate:
             rover = SimRover(DEMO_MISSION, seed=args.seed,
-                             obstacles=DEMO_OBSTACLES if args.obstacles else ())
+                             obstacles=DEMO_OBSTACLES if args.obstacles else (),
+                             **(SIM_QUIRKS if args.sim_quirks else {}))
             clock, sleep = rover.clock, rover.sleep
             source = (lambda: rover.camera_frame(camera)) if camera else None
         else:
@@ -962,11 +1066,20 @@ def main(argv=None):
                 import route_planner
                 with open(args.route_out, "w", encoding="utf-8") as f:
                     json.dump(route_planner.legs_geojson(legs), f)
+        elif args.calibrate:
+            import calibrate
+            if not args.simulate:
+                print("calibrating: the rover spins in place for 30 s, then drives straight "
+                      "for 20 s, turns about 90 degrees and drives 20 s more", file=sys.stderr)
+            result = calibrate.calibrate(rover, clock=clock, sleep=sleep)
+            if args.calibration_out and result["ok"]:
+                with open(args.calibration_out, "w", encoding="utf-8") as f:
+                    json.dump(result, f, indent=2)
         else:
             vision = free_space.VisionGuard(source, camera=camera) if camera else None
             pilot = Pilot(rover, clock=clock, sleep=sleep, steering=steering,
                           report_radius_m=args.report_radius, planner=planner, vision=vision,
-                          log=log)
+                          conventions=conventions, log=log)
             result = pilot.run(start=not args.no_start, timeout_s=args.timeout)
             if args.simulate and args.obstacles:
                 result["sim_contacts"] = rover.contacts

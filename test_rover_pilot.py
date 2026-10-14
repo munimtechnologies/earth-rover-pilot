@@ -9,6 +9,7 @@ import json
 import math
 import os
 import sys
+import tempfile
 import unittest
 import urllib.error
 from contextlib import redirect_stderr, redirect_stdout
@@ -87,6 +88,52 @@ class GpsTests(unittest.TestCase):
         f.update(LAT, LON, 0.0)
         f.update(*rp.offset_latlon(LAT, LON, 2, 0), 1.0)
         self.assertAlmostEqual(rp.to_enu(LAT, LON, f.lat, f.lon)[1], 1.0, delta=0.01)
+
+
+class ConventionsTests(unittest.TestCase):
+    def test_defaults_read_compass_degrees(self):
+        c = rp.Conventions()
+        self.assertAlmostEqual(c.heading(370), 10)
+        self.assertAlmostEqual(c.heading("128"), 128)
+        self.assertAlmostEqual(c.heading(-90), 270)
+        self.assertIsNone(c.heading(None))
+        self.assertIsNone(c.heading(float("nan")))
+        self.assertEqual(c.angular(0.3), 0.3)
+
+    def test_other_scales_and_directions(self):
+        self.assertAlmostEqual(rp.Conventions(256.0).heading(64), 90)
+        self.assertAlmostEqual(rp.Conventions(2 * math.pi).heading(math.pi), 180)
+        self.assertAlmostEqual(rp.Conventions(360.0, False).heading(90), 270)
+        self.assertAlmostEqual(rp.Conventions(256.0, False).heading(64), 270)
+
+    def test_left_positive_angular_is_flipped(self):
+        c = rp.Conventions(angular_right_positive=False)
+        self.assertEqual(c.angular(0.3), -0.3)
+        self.assertEqual(math.copysign(1.0, c.angular(0.0)), 1.0)  # a stop stays 0.0, not -0.0
+
+    def test_from_dict(self):
+        c = rp.Conventions.from_dict({"ok": True, "orientation_scale": 256,
+                                      "orientation_clockwise": False,
+                                      "angular_right_positive": False, "bias_deg": 12.5})
+        self.assertEqual(c.orientation_scale, 256.0)
+        self.assertFalse(c.orientation_clockwise)
+        self.assertFalse(c.angular_right_positive)
+        self.assertEqual(c.bias_deg, 12.5)
+        self.assertIsNone(rp.Conventions.from_dict({}).bias_deg)
+
+    def test_quirky_sim_reads_back_through_its_conventions(self):
+        sim = rp.SimRover(rp.DEMO_MISSION, compass_noise_deg=0.0, **rp.SIM_QUIRKS)
+        raw = sim.data()["orientation"]
+        self.assertTrue(0.0 <= raw < 256.0)
+        # heading 200 with a compass 25 degrees low reads 175
+        self.assertAlmostEqual(rp.Conventions(256.0, False).heading(raw), 175.0, delta=1e-6)
+
+    def test_sim_rover_that_turns_left(self):
+        sim = rp.SimRover([(40.0, 0.0)], heading_deg=0.0, latency_s=0.0, angular_sign=-1.0)
+        for _ in range(10):
+            sim.control(0.0, 0.5)
+            sim.sleep(0.1)
+        self.assertAlmostEqual(sim.heading, 330.0, delta=1e-6)
 
 
 class HeadingTests(unittest.TestCase):
@@ -252,6 +299,24 @@ class SimMissionTests(unittest.TestCase):
         self.assertTrue(res["ok"], res)
         self.assertEqual(sim.next_cp, 4)
 
+    def test_quirky_rover_with_its_conventions(self):
+        # orientation 0-255 counter-clockwise and a left-turning angular, undone by Conventions
+        sim = rp.SimRover(rp.DEMO_MISSION, seed=1, **rp.SIM_QUIRKS)
+        conv = rp.Conventions(256.0, False, False)
+        res = rp.Pilot(sim, clock=sim.clock, sleep=sim.sleep, conventions=conv).run(timeout_s=1500)
+        self.assertTrue(res["ok"], res)
+        self.assertEqual(res["reached"], [1, 2, 3, 4])
+
+    def test_left_turning_rover_without_conventions_goes_nowhere(self):
+        # every correction turns it the wrong way, so it ends up pointing away and
+        # turning in place; this is what --calibrate is for
+        sim = rp.SimRover(rp.DEMO_MISSION, seed=1, angular_sign=-1.0)
+        res = rp.Pilot(sim, clock=sim.clock, sleep=sim.sleep).run(timeout_s=120)
+        self.assertFalse(res["ok"])
+        self.assertEqual(res["reason"], "timeout")
+        self.assertEqual(res["reached"], [])
+        self.assertLess(math.hypot(sim.north, sim.east), 5.0)
+
     def test_no_checkpoints(self):
         class Empty:
             def start_mission(self):
@@ -408,6 +473,10 @@ class FakeResp:
         return False
 
 
+MISSIONS = [{"slug": "berkeley-loop", "distance_in_m": 1200, "checkpoints_count": 6},
+            {"slug": "campus-short", "distance_in_m": 300, "checkpoints_count": 3}]
+
+
 class SdkClientTests(unittest.TestCase):
     def test_checkpoints_parsed_and_sorted(self):
         payload = {"checkpoints_list": [
@@ -473,6 +542,20 @@ class SdkClientTests(unittest.TestCase):
             self.assertIsNone(rp.SdkClient().front_image())
             self.assertIsNone(rp.SdkCamera(rp.SdkClient(), None)())
 
+    def test_missions_as_a_list_or_wrapped(self):
+        for payload in (MISSIONS, {"missions": MISSIONS}):
+            with mock.patch.object(rp.urllib.request, "urlopen",
+                                   return_value=FakeResp(200, payload)) as m:
+                self.assertEqual(rp.SdkClient("http://x").missions(), MISSIONS)
+            self.assertEqual(m.call_args[0][0].full_url, "http://x/missions")
+        with mock.patch.object(rp.urllib.request, "urlopen", return_value=FakeResp(200, {})):
+            self.assertEqual(rp.SdkClient().missions(), [])
+
+    def test_missions_call_failed(self):
+        with mock.patch.object(rp.urllib.request, "urlopen",
+                               side_effect=urllib.error.URLError("refused")):
+            self.assertIsNone(rp.SdkClient().missions())
+
 
 class MainTests(unittest.TestCase):
     def test_simulate_cli(self):
@@ -494,6 +577,44 @@ class MainTests(unittest.TestCase):
         self.assertEqual(res["reason"], "timeout")
         self.assertGreaterEqual(res["vision"]["frames"], 1, res)
         self.assertIn("sim_contacts", res)
+
+    def test_calibrate_then_fly_cli(self):
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "calibration.json")
+            buf = io.StringIO()
+            with redirect_stdout(buf):
+                code = rp.main(["--simulate", "--sim-quirks", "--calibrate",
+                                "--calibration-out", path])
+            self.assertEqual(code, 0, buf.getvalue())
+            with open(path, encoding="utf-8") as f:
+                saved = json.load(f)
+            self.assertEqual(saved["orientation_scale"], 256.0)
+            self.assertFalse(saved["orientation_clockwise"])
+            self.assertFalse(saved["angular_right_positive"])
+            buf = io.StringIO()
+            with redirect_stdout(buf):
+                code = rp.main(["--simulate", "--sim-quirks", "--seed", "4",
+                                "--calibration", path])
+            self.assertEqual(code, 0, buf.getvalue())
+            self.assertEqual(json.loads(buf.getvalue())["reached"], [1, 2, 3, 4])
+
+    def test_failed_calibration_is_refused(self):
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "calibration.json")
+            with open(path, "w", encoding="utf-8") as f:
+                json.dump({"ok": False, "reason": "no GPS fix"}, f)
+            with redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
+                rp.main(["--simulate", "--calibration", path])
+
+    def test_list_missions_cli(self):
+        buf = io.StringIO()
+        with mock.patch.object(rp.urllib.request, "urlopen",
+                               return_value=FakeResp(200, MISSIONS)), redirect_stdout(buf):
+            code = rp.main(["--sdk", "http://x", "--list-missions"])
+        self.assertEqual(code, 0)
+        self.assertEqual(json.loads(buf.getvalue())["missions"], MISSIONS)
+        with redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
+            rp.main(["--simulate", "--list-missions"])
 
 
 if __name__ == "__main__":
