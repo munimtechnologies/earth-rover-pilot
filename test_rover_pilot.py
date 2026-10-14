@@ -3,6 +3,7 @@
 Run: python -m unittest test_rover_pilot -v
 """
 
+import base64
 import io
 import json
 import math
@@ -240,6 +241,31 @@ class SimMissionTests(unittest.TestCase):
         self.assertIn("no checkpoints", res["reason"])
 
 
+class SimObstacleTests(unittest.TestCase):
+    def test_obstacle_stops_the_rover_but_it_can_back_away(self):
+        sim = rp.SimRover([(40.0, 0.0)], heading_deg=0.0, latency_s=0.0,
+                          obstacles=[(2.0, 0.0, 1.0)])
+        for _ in range(50):
+            sim.control(1.0, 0.0)
+            sim.sleep(0.1)
+        self.assertGreater(sim.contacts, 0)
+        # 0.12 m a step; the next step after 0.72 m would bring it within 1.2 m of the centre
+        self.assertTrue(0.6 < sim.north <= 0.8, sim.north)
+        before = sim.north
+        for _ in range(10):
+            sim.control(-1.0, 0.0)
+            sim.sleep(0.1)
+        self.assertLess(sim.north, before - 0.5)
+
+    def test_no_obstacles_means_no_contacts(self):
+        sim = rp.SimRover([(40.0, 0.0)], heading_deg=0.0)
+        for _ in range(30):
+            sim.control(1.0, 0.0)
+            sim.sleep(0.1)
+        self.assertEqual(sim.contacts, 0)
+        self.assertEqual(sim.min_gap, math.inf)
+
+
 class FakeClock:
     def __init__(self):
         self.t = 0.0
@@ -356,6 +382,24 @@ class SdkClientTests(unittest.TestCase):
                                side_effect=urllib.error.URLError("refused")):
             self.assertEqual(rp.SdkClient().data(), {})
 
+    def test_front_image_is_decoded_from_base64(self):
+        payload = {"front_frame": base64.b64encode(b"jpeg bytes").decode(), "timestamp": 1.0}
+        with mock.patch.object(rp.urllib.request, "urlopen",
+                               return_value=FakeResp(200, payload)) as m:
+            self.assertEqual(rp.SdkClient("http://x").front_image(), b"jpeg bytes")
+        self.assertEqual(m.call_args[0][0].full_url, "http://x/v2/front")
+        payload = {"front_frame": "data:image/jpeg;base64," + base64.b64encode(b"x").decode()}
+        with mock.patch.object(rp.urllib.request, "urlopen", return_value=FakeResp(200, payload)):
+            self.assertEqual(rp.SdkClient("http://x").front_image(), b"x")
+
+    def test_missing_front_image(self):
+        with mock.patch.object(rp.urllib.request, "urlopen",
+                               side_effect=urllib.error.URLError("refused")):
+            self.assertIsNone(rp.SdkClient().front_image())
+        with mock.patch.object(rp.urllib.request, "urlopen", return_value=FakeResp(200, {})):
+            self.assertIsNone(rp.SdkClient().front_image())
+            self.assertIsNone(rp.SdkCamera(rp.SdkClient(), None)())
+
 
 class MainTests(unittest.TestCase):
     def test_simulate_cli(self):
@@ -364,6 +408,17 @@ class MainTests(unittest.TestCase):
             code = rp.main(["--simulate", "--seed", "4"])
         self.assertEqual(code, 0, buf.getvalue())
         self.assertTrue(json.loads(buf.getvalue())["ok"])
+
+    def test_simulate_cli_with_vision(self):
+        buf = io.StringIO()
+        with redirect_stdout(buf):
+            code = rp.main(["--simulate", "--vision", "--obstacles", "--seed", "4",
+                            "--timeout", "20"])
+        res = json.loads(buf.getvalue())
+        self.assertEqual(code, 1)  # 20 s is too short for the whole mission
+        self.assertEqual(res["reason"], "timeout")
+        self.assertGreaterEqual(res["vision"]["frames"], 1, res)
+        self.assertIn("sim_contacts", res)
 
 
 if __name__ == "__main__":

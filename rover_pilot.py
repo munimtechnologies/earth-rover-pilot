@@ -15,9 +15,12 @@ What it adds over a plain bearing-follower:
   no answer is checked against the server's checkpoint list before retrying.
 - Optionally, each leg follows a walkable route planned on OpenStreetMap
   (route_planner.py) instead of heading straight for the checkpoint.
+- Optionally, the front camera (free_space.py) bends the heading around
+  obstacles in the way and slows or stops the rover when nothing is clear.
 - Being stuck (driving with no GPS progress) triggers a back-up-and-turn move.
-- A built-in simulator (command latency, GPS noise and dropouts, compass bias)
-  lets the whole loop be tested without a rover.
+- A built-in simulator (command latency, GPS noise and dropouts, compass bias,
+  obstacles and a rendered front camera) lets the whole loop be tested
+  without a rover.
 
 Standard library only. By MV2 of Munim, Inc.; written with AI agents.
 """
@@ -25,6 +28,7 @@ Standard library only. By MV2 of Munim, Inc.; written with AI agents.
 from __future__ import annotations
 
 import argparse
+import base64
 import collections
 import json
 import math
@@ -34,7 +38,7 @@ import time
 import urllib.error
 import urllib.request
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 
 EARTH_RADIUS_M = 6371000.0
 M_PER_DEG = EARTH_RADIUS_M * math.pi / 180.0
@@ -45,6 +49,8 @@ REPORT_TIMEOUT_S = 20.0
 
 # (north_m, east_m) of each checkpoint from the start, for --simulate.
 DEMO_MISSION = [(40.0, 30.0), (85.0, -5.0), (60.0, -60.0), (10.0, -40.0)]
+# (north_m, east_m, radius_m) hedges on the first two legs, for --simulate --obstacles.
+DEMO_OBSTACLES = [(20.3, 14.6, 1.0), (62.5, 12.0, 1.0)]
 
 
 # --- geometry -------------------------------------------------------------
@@ -329,13 +335,17 @@ class Pilot:
     `planner`, if given, is called as planner(lat, lon, checkpoint_lat,
     checkpoint_lon) at the start of each leg and returns a list of (lat, lon)
     points to follow, or None to head straight for the checkpoint.
+
+    `vision`, if given, is called as vision.advise(t, error_deg, distance_m)
+    while driving forward and returns the (error_deg, speed_scale) to use
+    instead (free_space.VisionGuard).
     """
 
     def __init__(self, rover, clock=time.monotonic, sleep=time.sleep,
                  steering=None, rate_hz=10.0, report_radius_m=10.0,
                  hold_radius_m=3.0, retry_s=2.0, settle_s=1.5,
                  stuck_window_s=10.0, stuck_min_move_m=1.5, planner=None,
-                 replan_m=30.0, replan_s=30.0, log=None):
+                 replan_m=30.0, replan_s=30.0, vision=None, log=None):
         self.rover = rover
         self.clock = clock
         self.sleep = sleep
@@ -350,6 +360,7 @@ class Pilot:
         self.planner = planner
         self.replan_m = replan_m
         self.replan_s = replan_s
+        self.vision = vision
         self.log = log
         self.gps = GpsFilter()
         self.heading = HeadingEstimator()
@@ -443,10 +454,15 @@ class Pilot:
         heading = self.heading.heading(compass, t)
         if heading is None:
             # No compass and no recent course: drive straight to learn one from GPS.
-            linear, angular = 0.5 * self.steering.cruise, 0.0
+            error, scale = 0.0, 0.5
         else:
             target = bearing_deg(self.gps.lat, self.gps.lon, aim_lat, aim_lon)
-            linear, angular = self.steering.command(distance, wrap180(target - heading))
+            error, scale = wrap180(target - heading), 1.0
+        if self.vision is not None and abs(error) <= self.steering.turn_in_place_deg:
+            error, seen = self.vision.advise(t, error, distance)
+            scale *= seen
+        linear, angular = self.steering.command(distance, error)
+        linear *= scale
         if self._stuck(t, linear):
             self._start_recovery(t)
             return self._maneuver[0][1], self._maneuver[0][2]
@@ -458,7 +474,7 @@ class Pilot:
         return latest >= seq
 
     def _result(self, ok, reason, t0, total):
-        return {
+        out = {
             "ok": ok,
             "reason": reason,
             "reached": list(self.reached),
@@ -470,6 +486,9 @@ class Pilot:
             "compass_bias_deg": round(self.heading.bias, 1),
             "calibrations": self.heading.calibrations,
         }
+        if self.vision is not None:
+            out["vision"] = self.vision.stats()
+        return out
 
     def run(self, start=True, timeout_s=3600.0):
         t0 = self.clock()
@@ -523,10 +542,13 @@ class Pilot:
                 self.send(linear, angular)
                 if self._last_log_t is None or tick - self._last_log_t >= 1.0:
                     self._last_log_t = tick
+                    fields = {}
+                    if self.vision is not None and self.vision.clear_ahead is not None:
+                        fields["clear_m"] = round(self.vision.clear_ahead, 1)
                     self._log("tick", seq=seq, lat=round(self.gps.lat, 7),
                               lon=round(self.gps.lon, 7), dist_m=round(distance, 1),
                               bias=round(self.heading.bias, 1),
-                              cmd=[round(linear, 2), round(angular, 2)])
+                              cmd=[round(linear, 2), round(angular, 2)], **fields)
                 self._wait(tick)
             return self._result(True, "mission completed", t0, total)
         finally:
@@ -583,6 +605,19 @@ class SdkClient:
         self._req("POST", "/control", {"command": {
             "linear": round(clamp(linear), 3), "angular": round(clamp(angular), 3), "lamp": 0}})
 
+    def front_image(self):
+        """The latest front-camera frame as encoded image bytes (JPEG by default), or None."""
+        status, body = self._req("GET", "/v2/front", timeout=2.0)
+        frame = body.get("front_frame") if status == 200 else None
+        if not isinstance(frame, str) or not frame:
+            return None
+        if frame.startswith("data:"):
+            frame = frame.split(",", 1)[-1]
+        try:
+            return base64.b64decode(frame)
+        except ValueError:
+            return None
+
     def start_mission(self):
         status, _ = self._req("POST", "/start-mission", {})
         return status == 200
@@ -616,6 +651,21 @@ class SdkClient:
         return {"ok": False, "status": status, "distance": distance, "mission_completed": False}
 
 
+class SdkCamera:
+    """Frame source for free_space.VisionGuard: the SDK's front camera, shrunk (needs Pillow)."""
+
+    def __init__(self, client, camera):
+        self.client = client
+        self.camera = camera
+
+    def __call__(self):
+        import free_space
+        data = self.client.front_image()
+        if data is None:
+            return None
+        return free_space.decode_frame(data, self.camera.width, self.camera.height)
+
+
 # --- simulator ------------------------------------------------------------
 
 class SimRover:
@@ -625,14 +675,18 @@ class SimRover:
     with noise and occasional no-fix readings; the compass is off by
     `compass_error_deg`. Checkpoints are judged on the reported GPS, like the
     real server, and the last one is refused (503) unless the rover is stopped.
+    `obstacles` are (north_m, east_m, radius_m) hedges the rover can't drive
+    through; camera_frame() renders what its front camera would see.
     """
 
     def __init__(self, checkpoints_m, seed=0, start=(37.8719, -122.2585),
                  heading_deg=200.0, max_speed_mps=1.2, max_yaw_dps=60.0,
                  latency_s=0.5, gps_noise_m=1.5, gps_period_s=1.0,
                  gps_dropout=0.05, compass_error_deg=-25.0, compass_noise_deg=3.0,
-                 tolerance_m=15.0, dt=0.1, blocked_until_s=0.0):
+                 tolerance_m=15.0, dt=0.1, blocked_until_s=0.0, obstacles=(),
+                 rover_radius_m=0.2, obstacle_height_m=1.0):
         self.rng = random.Random(seed)
+        self.seed = seed
         self.lat0, self.lon0 = start
         self.checkpoint_coords = [offset_latlon(self.lat0, self.lon0, n, e)
                                   for n, e in checkpoints_m]
@@ -648,6 +702,11 @@ class SimRover:
         self.tolerance_m = tolerance_m
         self.dt = dt
         self.blocked_until_s = blocked_until_s
+        self.obstacles = list(obstacles)
+        self.rover_radius_m = rover_radius_m
+        self.obstacle_height_m = obstacle_height_m
+        self.contacts = 0  # steps on which an obstacle stopped the rover
+        self.min_gap = math.inf  # closest the rover's centre came to an obstacle's edge
         self.t = 0.0
         self.east = self.north = 0.0
         self.queue = collections.deque()
@@ -655,6 +714,8 @@ class SimRover:
         self.last_cmd_t = 0.0
         self.next_cp = 0
         self.reverse_seen = False
+        self._noise = None
+        self._frames = 0
         self._sample_gps()
 
     def _sample_gps(self):
@@ -665,6 +726,14 @@ class SimRover:
                                      self.north + self.rng.gauss(0, self.gps_noise_m),
                                      self.east + self.rng.gauss(0, self.gps_noise_m))
         self._next_gps_t = self.t + self.gps_period_s
+
+    def _hits_obstacle(self, north, east):
+        """True if moving to (north, east) would push the rover into an obstacle."""
+        for on, oe, r in self.obstacles:
+            d = math.hypot(north - on, east - oe)
+            if d < r + self.rover_radius_m and d < math.hypot(self.north - on, self.east - oe):
+                return True
+        return False
 
     def _step(self):
         while self.queue and self.queue[0][0] <= self.t:
@@ -679,8 +748,13 @@ class SimRover:
         if self.t >= self.blocked_until_s:
             v = linear * self.max_speed_mps * self.dt
             r = math.radians(self.heading)
-            self.east += v * math.sin(r)
-            self.north += v * math.cos(r)
+            north, east = self.north + v * math.cos(r), self.east + v * math.sin(r)
+            if self._hits_obstacle(north, east):
+                self.contacts += 1
+            else:
+                self.north, self.east = north, east
+        for on, oe, r in self.obstacles:
+            self.min_gap = min(self.min_gap, math.hypot(self.north - on, self.east - oe) - r)
         self.t += self.dt
         if self.t >= self._next_gps_t - 1e-9:
             self._sample_gps()
@@ -703,6 +777,21 @@ class SimRover:
                    + self.rng.gauss(0, self.compass_noise_deg)) % 360.0
         return {"latitude": self.gps[0], "longitude": self.gps[1], "orientation": compass,
                 "gps_signal": 0 if self.gps[0] == NO_FIX else 30, "timestamp": self.t}
+
+    def camera_frame(self, camera):
+        """What the front camera sees now: grey ground, green hedges, a little noise."""
+        import free_space
+        if self._noise is None:
+            self._noise = free_space.make_noise(seed=self.seed)
+        r = math.radians(self.heading)
+        cos_h, sin_h = math.cos(r), math.sin(r)
+        rel = []
+        for on, oe, radius in self.obstacles:
+            dn, de = on - self.north, oe - self.east
+            rel.append((de * cos_h - dn * sin_h, de * sin_h + dn * cos_h, radius,
+                        self.obstacle_height_m, free_space.HEDGE_GREEN))
+        self._frames += 1
+        return free_space.render(camera, rel, noise=self._noise, offset=self._frames * 997)
 
     def start_mission(self):
         return True
@@ -738,6 +827,8 @@ def main(argv=None):
     p.add_argument("--simulate", action="store_true",
                    help="fly the built-in demo mission in the simulator instead")
     p.add_argument("--seed", type=int, default=1, help="simulator random seed")
+    p.add_argument("--obstacles", action="store_true",
+                   help="(simulator) put two hedges on the demo route")
     p.add_argument("--no-start", action="store_true",
                    help="don't call /start-mission (resume a mission already running)")
     p.add_argument("--cruise", type=float, default=0.6, help="cruise linear command, 0-1")
@@ -747,6 +838,15 @@ def main(argv=None):
                                  "(see: python route_planner.py fetch)")
     p.add_argument("--fetch-osm", action="store_true",
                    help="plan each leg on OpenStreetMap paths fetched from Overpass as needed")
+    p.add_argument("--vision", action="store_true",
+                   help="steer around obstacles seen by the front camera "
+                        "(a real rover needs Pillow: pip install pillow)")
+    p.add_argument("--camera-fov", type=float, default=90.0,
+                   help="front camera horizontal field of view, degrees")
+    p.add_argument("--camera-height", type=float, default=0.35,
+                   help="front camera height above the ground, metres")
+    p.add_argument("--camera-pitch", type=float, default=5.0,
+                   help="front camera downward tilt, degrees")
     p.add_argument("--timeout", type=float, default=3600.0, help="give up after this many seconds")
     p.add_argument("--log", help="append a JSON-lines log of the run to this file")
     p.add_argument("--version", action="version", version=__version__)
@@ -761,6 +861,18 @@ def main(argv=None):
                 osm = json.load(f)
         planner = route_planner.OsmPlanner(osm=osm, fetch=args.fetch_osm)
 
+    camera = None
+    if args.vision:
+        import free_space
+        if not args.simulate:
+            try:
+                import PIL  # noqa: F401
+            except ImportError:
+                print("--vision on a real rover needs Pillow: pip install pillow", file=sys.stderr)
+                return 2
+        camera = free_space.Camera(hfov_deg=args.camera_fov, height_m=args.camera_height,
+                                   pitch_deg=args.camera_pitch)
+
     log_file = open(args.log, "a", encoding="utf-8") if args.log else None
 
     def log(record):
@@ -770,13 +882,21 @@ def main(argv=None):
     try:
         steering = Steering(cruise=args.cruise)
         if args.simulate:
-            sim = SimRover(DEMO_MISSION, seed=args.seed)
-            pilot = Pilot(sim, clock=sim.clock, sleep=sim.sleep, steering=steering,
-                          report_radius_m=args.report_radius, planner=planner, log=log)
+            rover = SimRover(DEMO_MISSION, seed=args.seed,
+                             obstacles=DEMO_OBSTACLES if args.obstacles else ())
+            clock, sleep = rover.clock, rover.sleep
+            source = (lambda: rover.camera_frame(camera)) if camera else None
         else:
-            pilot = Pilot(SdkClient(args.sdk), steering=steering,
-                          report_radius_m=args.report_radius, planner=planner, log=log)
+            rover = SdkClient(args.sdk)
+            clock, sleep = time.monotonic, time.sleep
+            source = SdkCamera(rover, camera) if camera else None
+        vision = free_space.VisionGuard(source, camera=camera) if camera else None
+        pilot = Pilot(rover, clock=clock, sleep=sleep, steering=steering,
+                      report_radius_m=args.report_radius, planner=planner, vision=vision,
+                      log=log)
         result = pilot.run(start=not args.no_start, timeout_s=args.timeout)
+        if args.simulate and args.obstacles:
+            result["sim_contacts"] = rover.contacts
     except KeyboardInterrupt:
         print("interrupted; stop sent to the rover", file=sys.stderr)
         return 130
