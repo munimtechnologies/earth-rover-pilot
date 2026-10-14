@@ -31,7 +31,7 @@ from rover_pilot import M_PER_DEG, __version__, haversine_m
 
 OVERPASS_URL = "https://overpass-api.de/api/interpreter"
 USER_AGENT = ("earth-rover-pilot/%s (MV2 of Munim, Inc.; "
-              "https://github.com/munimv2/earth-rover-pilot)" % __version__)
+              "https://github.com/munimtechnologies/earth-rover-pilot)" % __version__)
 
 # Cost per metre by highway type. Ways built for walking are cheapest; roads
 # are allowed (the rover keeps to their sidewalk) but cost more. Steps,
