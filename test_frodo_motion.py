@@ -1,6 +1,8 @@
 """Tests for frodo_motion, on synthetic zips and a simulated rover with known motion."""
 
+import csv
 import io
+import json
 import math
 import random
 import struct
@@ -58,13 +60,38 @@ def synthetic_ride(seed=3, duration=900.0, start=START, gps_delay=2.0, yaw_per_u
     return control, gps
 
 
+def synthetic_gyro(control, yaw_per_unit=-40.0, seed=5):
+    """One gyroscope sample a second. z is the rover's true turn rate in deg/s,
+    counter-clockwise positive, plus a 0.4 bias; x and y are bias and noise."""
+    rng = random.Random(seed)
+    out = []
+    for i in range(0, len(control), 10):
+        t, _, ang, _ = control[i]
+        out.append((t + 0.03, 3.0 + rng.gauss(0, 0.3), -2.7 + rng.gauss(0, 0.3),
+                    0.4 - yaw_per_unit * ang + rng.gauss(0, 0.5)))
+    return out
+
+
+def imu_csv(gyro):
+    """An imu_data CSV in the FrodoBots-2K layout: each cell a list of [x, y, z, t]."""
+    buf = io.StringIO()
+    w = csv.writer(buf)
+    w.writerow(["compass", "accelerometer", "gyroscope", "timestamp"])
+    for t, x, y, z in gyro:
+        w.writerow([json.dumps([["-900", "600", "100", "%.3f" % t]]),
+                    json.dumps([["0.816", "0.09", "-0.44", "%.3f" % t]]),
+                    json.dumps([["%.3f" % x, "%.3f" % y, "%.3f" % z, "%.3f" % t]]),
+                    str(int(t * 1000) + 400)])
+    return buf.getvalue().encode()
+
+
 def ride_csvs(seed, start=START):
     control, gps = synthetic_ride(seed=seed, start=start)
     c = ["linear,angular,rpm_1,rpm_2,rpm_3,rpm_4,timestamp"]
     c += ["%.3f,%.4f,%d,%d,%d,%d,%.3f" % (l, a, q[0], q[1], q[2], q[3], t) for t, l, a, q in control]
     g = ["latitude,longitude,timestamp"]
     g += ["%.8f,%.8f,%d" % (la, lo, int(round(t * 1000))) for t, la, lo in gps]
-    return ("\n".join(c) + "\n").encode(), ("\n".join(g) + "\n").encode()
+    return ("\n".join(c) + "\n").encode(), ("\n".join(g) + "\n").encode(), imu_csv(synthetic_gyro(control))
 
 
 class ZipTests(unittest.TestCase):
@@ -157,10 +184,23 @@ class HelperTests(unittest.TestCase):
             a.add(x, -3.0 * x, 0.5, 0.5)
         self.assertAlmostEqual(a.corr(), -1.0)
         self.assertAlmostEqual(a.slope0(), -3.0)
+        self.assertAlmostEqual(a.slope(), -3.0)
         self.assertEqual((a.agree, a.disagree), (0, 4))
         b = fm.Acc()
         b.merge(a)
         self.assertEqual(b.n, 4)
+
+    def test_slope_ignores_an_offset(self):
+        a = fm.Acc()
+        for x in (0.0, 1.0, 2.0, 3.0):
+            a.add(x, 2.0 * x + 5.0)
+        self.assertAlmostEqual(a.slope(), 2.0)
+        self.assertGreater(a.slope0(), 3.0)
+        self.assertIsNone(fm.Acc().slope())
+
+    def test_median(self):
+        self.assertEqual(fm.median([3.0, 1.0, 2.0]), 2.0)
+        self.assertEqual(fm.median([5.0]), 5.0)
 
     def test_load_control_and_gps(self):
         ch, cr = fm.parse_csv(b"speed,angular,rpm_1,rpm_2,rpm_3,rpm_4,timestamp\n"
@@ -177,6 +217,30 @@ class HelperTests(unittest.TestCase):
         self.assertEqual([g[0] for g in gps], [1681119426.0, 1681119427.0])
         with self.assertRaises(ValueError):
             fm.load_control(["a", "b"], [])
+
+    def test_load_imu(self):
+        # The layout of FrodoBots-2K's imu_data CSVs, with a sample repeated across rows.
+        h, rows = fm.parse_csv(
+            b'compass,accelerometer,gyroscope,timestamp\n'
+            b'"[[""-928"", ""608"", ""116"", ""1705301256.972""]]",[],'
+            b'"[[""3.344"", ""-2.763"", ""0.084"", ""1705301256.765""]]",1705301260848\n'
+            b'x,y,"[[""3.5"", ""-2.7"", ""0.1"", ""1705301257.765""], '
+            b'[""3.344"", ""-2.763"", ""0.084"", ""1705301256.765""]]",1\n'
+            b'x,y,not json,2\n')
+        gyro = fm.load_imu(h, rows)
+        self.assertEqual(len(gyro), 2)
+        self.assertEqual(gyro[0], (1705301256.765, 3.344, -2.763, 0.084))
+        self.assertEqual(gyro[1][1], 3.5)
+        self.assertEqual(fm.load_imu(h, rows, "compass"), [(1705301256.972, -928.0, 608.0, 116.0)])
+        with self.assertRaises(ValueError):
+            fm.load_imu(["a"], [])
+
+    def test_parse_samples_rejects_junk(self):
+        self.assertEqual(fm.parse_samples("not json"), [])
+        self.assertEqual(fm.parse_samples('{"a": 1}'), [])
+        self.assertEqual(fm.parse_samples('[["1", "2", "x", "3"]]'), [])
+        self.assertEqual(fm.parse_samples('[["1", "2"]]'), [])
+        self.assertEqual(fm.parse_samples('[[1, 2, 3, 4]]'), [(4.0, 1.0, 2.0, 3.0)])
 
 
 class AnalysisTests(unittest.TestCase):
@@ -224,9 +288,60 @@ class AnalysisTests(unittest.TestCase):
         lines = fm.conclusions(self.summary, fm.rpm_sign_totals([self.stats]))
         self.assertTrue(any("turned the rover left" in line for line in lines), lines)
 
+    def test_no_gyro_means_no_gyro_results(self):
+        self.assertNotIn("gyro_best", self.stats)
+        self.assertNotIn("gyro_all", self.summary)
+        self.assertIsNone(fm.yaw_axis(self.summary))
+
     def test_short_ride_is_skipped(self):
         st = fm.analyse_ride([(0.0, 0.0, 0.0, [0.0] * 4)] * 10, [], {}, {})
         self.assertEqual(st["skipped"], "too little data")
+
+
+class GyroTests(unittest.TestCase):
+    """The simulated gyroscope's z axis reads the turn rate in deg/s,
+    counter-clockwise positive, and a positive angular turns left at 40 deg/s."""
+
+    @classmethod
+    def setUpClass(cls):
+        control, gps = synthetic_ride()
+        cls.pooled, cls.bins = {}, {}
+        cls.stats = fm.analyse_ride(control, gps, cls.pooled, cls.bins, synthetic_gyro(control))
+        cls.summary = fm.summarise(cls.pooled, cls.bins, min_n=30)
+
+    def test_finds_the_yaw_axis(self):
+        i, b = fm.yaw_axis(self.summary)
+        self.assertEqual(i, 2)
+        self.assertGreater(b["corr"], 0.8)
+        self.assertLessEqual(abs(b["lag_s"]), 0.5)
+        self.assertAlmostEqual(b["slope"], 40.0, delta=6.0)
+
+    def test_other_axes_are_noise(self):
+        for i in ("0", "1"):
+            self.assertLess(abs(self.summary["gyro_all"][i]["best"]["corr"]), 0.3)
+
+    def test_spin_in_place_rate(self):
+        b = self.summary["gyro_spin"]["2"]["best"]
+        self.assertGreaterEqual(b["n"], 30)
+        self.assertAlmostEqual(b["slope"], 40.0, delta=8.0)
+
+    def test_gps_course_checks_the_units(self):
+        b = self.summary["course_gyro"]["2"]["best"]
+        self.assertLess(b["corr"], -0.5)
+        self.assertGreater(b["slope"], -1.4)
+        self.assertLess(b["slope"], -0.6)
+        self.assertLessEqual(abs(b["lag_s"] - 2.0), 1.0)
+
+    def test_per_ride_stats(self):
+        self.assertEqual(self.stats["gyro_samples"], 900)
+        self.assertAlmostEqual(self.stats["gyro_median"][0], 3.0, delta=0.2)
+        self.assertGreater(self.stats["gyro_best"]["z"]["corr"], 0.8)
+
+    def test_conclusions(self):
+        lines = fm.conclusions(self.summary, fm.rpm_sign_totals([self.stats]))
+        self.assertTrue(any("axis z follows" in line and "gives a positive reading" in line
+                            for line in lines), lines)
+        self.assertTrue(any(line.startswith("Units check") for line in lines), lines)
 
 
 class PartTests(unittest.TestCase):
@@ -234,11 +349,12 @@ class PartTests(unittest.TestCase):
         buf = io.BytesIO()
         with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
             for i, seed in enumerate((3, 4)):
-                c, g = ride_csvs(seed, START + 10000 * i)
+                c, g, imu = ride_csvs(seed, START + 10000 * i)
                 base = "output_rides_7/ride_%d_2024050101365%d/" % (100 + i, i)
                 z.writestr(base + "control_data_%d.csv" % (100 + i), c)
                 z.writestr(base + "gps_data_%d.csv" % (100 + i), g)
-                z.writestr(base + "imu_data_%d.csv" % (100 + i), b"accelerometer,timestamp\n1,2\n")
+                z.writestr(base + "imu_data_%d.csv" % (100 + i),
+                           imu if i == 0 else b"accelerometer,timestamp\n1,2\n")
                 z.writestr(base + "recordings/front_0001.ts", b"\0" * 500)
             z.writestr("output_rides_7/ride_999_20240501000000/control_data_999.csv", b"linear\n")
         blob = buf.getvalue()
@@ -250,13 +366,33 @@ class PartTests(unittest.TestCase):
         self.assertEqual(info["csv_kinds"]["control_data"], 3)
         self.assertEqual(info["extensions"]["ts"], 2)
         self.assertEqual(info["samples"]["control"][0][0], "linear")
-        self.assertEqual(info["samples"]["imu"][0][0], ["accelerometer", "timestamp"])
+        self.assertEqual(info["samples"]["imu"][0][0],
+                         ["compass", "accelerometer", "gyroscope", "timestamp"])
         self.assertEqual([r.get("error") for r in rides], [None, None])
         self.assertEqual(rides[0]["ride_id"], "100")
+        self.assertEqual(rides[0]["gyro_samples"], 900)
+        self.assertTrue(rides[1]["gyro_error"].startswith("ValueError"), rides[1])
         summary = fm.summarise(pooled, bins)
         turn = summary["turn"]["2"]["best"]
         self.assertLess(turn["corr"], -0.5)
         self.assertLessEqual(abs(turn["lag_s"] - 2.0), 1.0)
+        self.assertEqual(fm.yaw_axis(summary)[0], 2)
+
+    def test_big_imu_file_is_skipped(self):
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
+            c, g, imu = ride_csvs(3)
+            base = "output_rides_7/ride_100_20240501013650/"
+            z.writestr(base + "control_data_100.csv", c)
+            z.writestr(base + "gps_data_100.csv", g)
+            z.writestr(base + "imu_data_100.csv", imu)
+        blob = buf.getvalue()
+        rz = fm.RemoteZip(len(blob), bytes_fetch(blob))
+        rides = []
+        fm.process_part(rz, "output_rides_7", 1, {}, {}, rides, gyro_max_mb=0.01)
+        self.assertIn("skipped", rides[0]["gyro_error"])
+        self.assertNotIn("gyro_samples", rides[0])
+        self.assertNotIn("error", rides[0])
 
 
 if __name__ == "__main__":

@@ -2,22 +2,26 @@
 """frodo_motion: how FrodoBots Earth Rovers actually move, measured from FrodoBots-2K.
 
 The Earth Rover SDK doesn't say which way a positive `angular` turns the rover,
-how fast it goes at a given command, or how late its GPS is. FrodoBots-2K
-(about 2,000 hours of human-driven Earth Rover rides, CC BY-SA 4.0, FrodoBots
-Lab) logs the driver's commands, the four wheel RPMs and GPS for every ride,
-so the data can answer these questions.
+how fast it goes at a given command, how late its GPS is, or which gyroscope
+axis is yaw. FrodoBots-2K (about 2,000 hours of human-driven Earth Rover
+rides, CC BY-SA 4.0, FrodoBots Lab) logs the driver's commands, the four wheel
+RPMs, GPS and the IMU for every ride, so the data can answer these questions.
 
 The dataset comes as 24 zip files of 2 to 95 GB, mostly video. This script
 reads only what it needs over HTTP range requests: each zip's central
-directory, then the control and GPS CSVs of a sample of rides from every part.
+directory, then the control, GPS and IMU CSVs of a sample of rides from every
+part.
 
-For each ride it lines the commands up with GPS, at lags from -3 to 10 s:
+For each ride it lines the commands up with GPS and the gyroscope:
 - turning: the rate of change of the GPS course against the commanded
   angular. The sign of the correlation says which way a positive angular turns
   the rover; the lag with the strongest correlation is the delay from command
   to GPS.
 - speed: GPS speed against the mean wheel RPM and against the commanded linear.
 - wheel RPMs: whether they ever go negative (reversing, spinning in place).
+- gyroscope: each axis (minus its median, the bias) against the commanded
+  angular, while driving and while spinning in place; the axis that follows it
+  is yaw. The GPS course rate against that axis checks its units and sign.
 
     python frodo_motion.py --out-dir out --rides-per-part 12
 
@@ -41,18 +45,22 @@ import time
 import urllib.request
 import zlib
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 INDEX_URL = "https://frodobots-2k-dataset.s3.ap-southeast-1.amazonaws.com/complete-dataset.csv"
 USER_AGENT = ("frodo-motion/%s (MV2 of Munim, Inc.; "
               "https://github.com/munimtechnologies/earth-rover-pilot)" % __version__)
 LAGS = [x / 2.0 for x in range(-6, 21)]      # -3.0 .. 10.0 s, GPS behind control
 RPM_LAGS = [x / 5.0 for x in range(0, 16)]   # 0.0 .. 3.0 s, RPM behind command
+GYRO_LAGS = [x / 4.0 for x in range(-4, 13)]  # -1.0 .. 3.0 s, gyroscope behind command
+GPS_GYRO_LAGS = [x / 2.0 for x in range(0, 9)]  # 0.0 .. 4.0 s, GPS behind gyroscope
 STRIDES = (1, 2, 3)                          # GPS fixes per course segment
 KIND_RE = re.compile(r"(?:^|/)(control_data|gps_data|imu_data)_[^/]*\.csv$")
 RIDE_RE = re.compile(r"ride_(\d+)_(\d{14})")
 LIN_EDGES = (0.1, 0.3, 0.5, 0.7, 0.9, 1.01)
 R_EARTH = 6371000.0
+AXES = "xyz"
+GYRO_FAMILIES = ("gyro_all", "gyro_spin", "course_gyro")
 
 ZipEntry = collections.namedtuple("ZipEntry", "name method crc csize usize offset")
 
@@ -304,6 +312,37 @@ def load_gps(header, rows):
     return out
 
 
+def parse_samples(cell):
+    """[(t, x, y, z)] from an IMU cell such as '[["3.3", "-2.7", "0.08", "1705301256.765"]]'."""
+    try:
+        values = json.loads(cell)
+    except (TypeError, ValueError):
+        return []
+    out = []
+    if not isinstance(values, list):
+        return out
+    for s in values:
+        if isinstance(s, (list, tuple)) and len(s) >= 4:
+            x, y, z, t = (number(v) for v in s[:4])
+            if None not in (x, y, z, t):
+                out.append((norm_t(t), x, y, z))
+    return out
+
+
+def load_imu(header, rows, name="gyroscope"):
+    """[(t, x, y, z)] samples of one IMU column, sorted by time, each time once.
+    FrodoBots-2K stores every sensor as a list of [x, y, z, t] samples per row."""
+    k = column(header, name)
+    if k is None:
+        raise ValueError("no %s column in %s" % (name, header))
+    seen = {}
+    for row in rows:
+        if k < len(row):
+            for s in parse_samples(row[k]):
+                seen[s[0]] = s
+    return [seen[t] for t in sorted(seen)]
+
+
 # --- Statistics -----------------------------------------------------------
 
 class Series:
@@ -324,7 +363,7 @@ class Series:
 
 
 class Acc:
-    """Running sums for a correlation, a slope through the origin and a sign test."""
+    """Running sums for a correlation, slopes and a sign test."""
 
     __slots__ = ("n", "sx", "sy", "sxx", "syy", "sxy", "agree", "disagree")
 
@@ -359,12 +398,21 @@ class Acc:
         return (self.n * self.sxy - self.sx * self.sy) / math.sqrt(vx * vy)
 
     def slope0(self):
+        """Least-squares slope through the origin."""
         return self.sxy / self.sxx if self.sxx > 0 else None
 
+    def slope(self):
+        """Least-squares slope with an intercept, so a constant offset in y doesn't matter."""
+        v = self.n * self.sxx - self.sx ** 2
+        if self.n < 2 or v <= 0:
+            return None
+        return (self.n * self.sxy - self.sx * self.sy) / v
+
     def as_dict(self):
-        c, s = self.corr(), self.slope0()
+        c, s0, s = self.corr(), self.slope0(), self.slope()
         return {"n": self.n, "corr": None if c is None else round(c, 4),
-                "slope0": None if s is None else round(s, 5),
+                "slope0": None if s0 is None else round(s0, 5),
+                "slope": None if s is None else round(s, 5),
                 "agree": self.agree, "disagree": self.disagree}
 
 
@@ -413,6 +461,11 @@ def _mean(values):
     return round(sum(values) / len(values), 2) if values else None
 
 
+def median(values):
+    s = sorted(values)
+    return s[len(s) // 2]
+
+
 def best_lag(by_lag, min_n=100):
     """The lag whose correlation is strongest, with its numbers, or None."""
     best = None
@@ -429,9 +482,10 @@ def best_lag(by_lag, min_n=100):
     return out
 
 
-def analyse_ride(control, gps, pooled, bins):
-    """Stats for one ride; its samples are added to `pooled` ({(family, stride,
-    lag): Acc}) and `bins` ({(stride, lag): Bins})."""
+def analyse_ride(control, gps, pooled, bins, gyro=None):
+    """Stats for one ride; its samples are added to `pooled` ({(family, stride
+    or axis, lag): Acc}) and `bins` ({(stride, lag): Bins}). `gyro`, if given,
+    is the ride's gyroscope samples [(t, x, y, z)]."""
     st = {"control_rows": len(control), "gps_fixes": len(gps)}
     if len(control) < 50 or len(gps) < 20:
         st["skipped"] = "too little data"
@@ -472,6 +526,17 @@ def analyse_ride(control, gps, pooled, bins):
         if full else None
     cmd_s = Series(ts, [max(abs(a), abs(b)) for a, b in zip(lin, ang)])
 
+    # Each gyroscope axis minus its median: on a ride that mostly isn't turning,
+    # the median is the sensor's bias.
+    gyro_axes = gyro_s = None
+    if gyro and len(gyro) >= 20:
+        gt_imu = [g[0] for g in gyro]
+        meds = [median([g[i + 1] for g in gyro]) for i in range(3)]
+        gyro_axes = [[g[i + 1] - meds[i] for g in gyro] for i in range(3)]
+        gyro_s = [Series(gt_imu, vals) for vals in gyro_axes]
+        st["gyro_samples"] = len(gyro)
+        st["gyro_median"] = [round(m, 3) for m in meds]
+
     gt = [g[0] for g in gps]
     pts = [to_enu(gps[0][1], gps[0][2], g[1], g[2]) for g in gps]
     for s in STRIDES:
@@ -505,11 +570,17 @@ def analyse_ride(control, gps, pooled, bins):
                 continue
             # Course rate, clockwise positive, between the middles of two chords.
             w = wrap180(nxt[2] - head) / ((gt[k + 2 * s] - gt[k]) / 2.0)
+            mid0, mid1 = (gt[k] + gt[k + s]) / 2.0, (gt[k + s] + gt[k + 2 * s]) / 2.0
             for lag in LAGS:
-                c = ang_s.mean((gt[k] + gt[k + s]) / 2.0 - lag,
-                               (gt[k + s] + gt[k + 2 * s]) / 2.0 - lag)
+                c = ang_s.mean(mid0 - lag, mid1 - lag)
                 if c is not None:
                     acc(("turn", s, lag)).add(c, w, 0.2, 5.0)
+            if gyro_s is not None and s == 2:
+                for lag in GPS_GYRO_LAGS:
+                    for i, ser in enumerate(gyro_s):
+                        g = ser.mean(mid0 - lag, mid1 - lag)
+                        if g is not None:
+                            acc(("course_gyro", i, lag)).add(g, w)
 
     if rpm_s is not None:
         for idx in range(0, len(full), 2):
@@ -520,9 +591,27 @@ def analyse_ride(control, gps, pooled, bins):
                 if c is not None:
                     acc(("rpm_lag", 0, lag)).add(c, y)
 
+    if gyro_s is not None:
+        abs_lin_s = Series(ts, [abs(x) for x in lin])
+        for j, g in enumerate(gyro):
+            for lag in GYRO_LAGS:
+                a, b = g[0] - lag - 0.5, g[0] - lag + 0.5
+                c = ang_s.mean(a, b)
+                if c is None:
+                    continue
+                still = abs_lin_s.mean(a, b) < 0.05
+                for i in range(3):
+                    acc(("gyro_all", i, lag)).add(c, gyro_axes[i][j])
+                    if still:
+                        acc(("gyro_spin", i, lag)).add(c, gyro_axes[i][j])
+
     for fam in ("turn", "speed_rpm"):
         st[fam + "_best"] = best_lag({lag: local[(fam, 2, lag)] for lag in LAGS
                                       if (fam, 2, lag) in local}, min_n=20)
+    if gyro_s is not None:
+        st["gyro_best"] = {AXES[i]: best_lag({lag: local[("gyro_all", i, lag)] for lag in GYRO_LAGS
+                                              if ("gyro_all", i, lag) in local}, min_n=20)
+                           for i in range(3)}
     for key, a in local.items():
         pooled.setdefault(key, Acc()).merge(a)
     for key, b in local_bins.items():
@@ -532,7 +621,8 @@ def analyse_ride(control, gps, pooled, bins):
 
 # --- Parts, summary and report ---------------------------------------------
 
-def process_part(rz, label, rides_per_part, pooled, bins, rides_out, imu_per_part=1):
+def process_part(rz, label, rides_per_part, pooled, bins, rides_out, imu_per_part=1,
+                 gyro_max_mb=40.0):
     kinds, exts = collections.Counter(), collections.Counter()
 
     def want(name):
@@ -558,22 +648,29 @@ def process_part(rz, label, rides_per_part, pooled, bins, rides_out, imu_per_par
         m = RIDE_RE.search(ride)
         if m:
             st["ride_id"], st["ride_time"] = m.group(1), m.group(2)
+        gyro = None
+        if "imu_data" not in d:
+            st["gyro_error"] = "no IMU file"
+        elif d["imu_data"].usize > gyro_max_mb * (1 << 20):
+            st["gyro_error"] = "IMU file of %d bytes skipped" % d["imu_data"].usize
+        else:
+            try:
+                ih, ir = parse_csv(rz.read(d["imu_data"]))
+                if i < imu_per_part:
+                    info["samples"].setdefault("imu", []).append(
+                        [ih] + [[c[:300] for c in row] for row in ir[:3]] + [["rows", len(ir)]])
+                gyro = load_imu(ih, ir)
+            except Exception as exc:
+                st["gyro_error"] = "%s: %s" % (type(exc).__name__, exc)
         try:
             ch, cr = parse_csv(rz.read(d["control_data"]))
             gh, gr = parse_csv(rz.read(d["gps_data"]))
             if i == 0:
                 info["samples"]["control"] = [ch] + cr[:3]
                 info["samples"]["gps"] = [gh] + gr[:3]
-            st.update(analyse_ride(load_control(ch, cr), load_gps(gh, gr), pooled, bins))
+            st.update(analyse_ride(load_control(ch, cr), load_gps(gh, gr), pooled, bins, gyro))
         except Exception as exc:
             st["error"] = "%s: %s" % (type(exc).__name__, exc)
-        if i < imu_per_part and "imu_data" in d and d["imu_data"].usize <= 40 << 20:
-            try:
-                ih, ir = parse_csv(rz.read(d["imu_data"]))
-                info["samples"].setdefault("imu", []).append(
-                    [ih] + [[c[:300] for c in row] for row in ir[:3]] + [["rows", len(ir)]])
-            except Exception as exc:
-                info["samples"]["imu_error"] = "%s: %s" % (type(exc).__name__, exc)
         rides_out.append(st)
     info["bytes_read"] = rz.bytes_read
     return info
@@ -602,6 +699,20 @@ def summarise(pooled, bins, min_n=100):
 def rpm_sign_totals(rides):
     keys = ("rpm_rows", "rpm_negative_rows", "reverse_rows", "spin_rows", "spin_opposite_sides")
     return {k: sum(r.get(k) or 0 for r in rides) for k in keys}
+
+
+def yaw_axis(summary):
+    """(axis index, best gyro_all row) of the gyroscope axis that follows the
+    commanded angular most closely, or None."""
+    found = []
+    for i in range(3):
+        b = ((summary.get("gyro_all") or {}).get(str(i)) or {}).get("best")
+        if b and b["corr"] is not None:
+            found.append((abs(b["corr"]), i, b))
+    if not found:
+        return None
+    _, i, b = max(found, key=lambda f: f[0])
+    return i, b
 
 
 def conclusions(summary, totals):
@@ -644,6 +755,31 @@ def conclusions(summary, totals):
             "which %d show the two sides turning in opposite directions."
             % (totals["rpm_negative_rows"], totals["rpm_rows"], totals["reverse_rows"],
                totals["spin_rows"], totals["spin_opposite_sides"]))
+    yaw = yaw_axis(summary)
+    if yaw:
+        i, b = yaw
+        others = ", ".join("%s r = %.3f" % (AXES[j], best("gyro_all", str(j))["corr"])
+                           for j in range(3) if j != i and best("gyro_all", str(j)))
+        lines.append(
+            "Gyroscope: axis %s follows the commanded angular most closely, %.2f s later "
+            "(r = %.3f, n = %d; %s). A positive angular gives a %s reading on it, %.2f units "
+            "per unit of angular (least squares, all samples)."
+            % (AXES[i], b["lag_s"], b["corr"], b["n"], others or "no other axis",
+               "positive" if b["corr"] > 0 else "negative", b["slope"] or 0.0))
+        spin = best("gyro_spin", str(i))
+        if spin:
+            lines.append(
+                "Spinning in place (|linear| < 0.05): gyroscope %s reads %.2f units per unit of "
+                "angular (r = %.3f, n = %d, %.2f s after the command)."
+                % (AXES[i], spin["slope"] or 0.0, spin["corr"], spin["n"], spin["lag_s"]))
+        cg = best("course_gyro", str(i))
+        if cg:
+            lines.append(
+                "Units check: the GPS course rate (deg/s, clockwise positive) is %.2f times "
+                "gyroscope %s (r = %.3f, n = %d, GPS %.1f s behind). Near -1 means the gyroscope "
+                "reads deg/s, counter-clockwise positive; near +1, deg/s clockwise positive. Both "
+                "are averaged over about 2 s, so expect the size to be a little under 1."
+                % (cg["slope"] or 0.0, AXES[i], cg["corr"], cg["n"], cg["lag_s"]))
     return lines
 
 
@@ -654,6 +790,7 @@ def write_outputs(out_dir, parts, rides, summary, started):
     result = {"version": __version__, "data": "FrodoBots-2K, FrodoBots Lab, CC BY-SA 4.0",
               "elapsed_s": round(time.monotonic() - started, 1), "parts": parts,
               "rides_sampled": len(rides), "rides_analysed": len(analysed),
+              "rides_with_gyro": sum(1 for r in analysed if r.get("gyro_samples")),
               "ride_errors": sum(1 for r in rides if "error" in r),
               "bytes_read": sum(p.get("bytes_read", 0) for p in parts),
               "rpm_sign": totals, "conclusions": lines, "results": summary}
@@ -666,17 +803,24 @@ def write_outputs(out_dir, parts, rides, summary, started):
           "Generated by frodo_motion.py %s (earth-rover-pilot, MV2 of Munim, Inc.). Data: "
           "FrodoBots-2K by FrodoBots Lab, CC BY-SA 4.0. Human-driven rides from the Earth Rovers "
           "game; the SDK's /control may map commands differently." % __version__, "",
-          "Parts read: %d. Rides sampled: %d, analysed: %d, errors: %d. Downloaded: %.1f MB."
+          "Parts read: %d. Rides sampled: %d, analysed: %d (with gyroscope: %d), errors: %d. "
+          "Downloaded: %.1f MB."
           % (sum(1 for p in parts if "error" not in p and "skipped" not in p), len(rides),
-             len(analysed), result["ride_errors"], result["bytes_read"] / 1e6), "", "## Findings", ""]
+             len(analysed), result["rides_with_gyro"], result["ride_errors"],
+             result["bytes_read"] / 1e6), "", "## Findings", ""]
     md += ["- " + line for line in lines] or ["- No result reached the minimum sample size."]
-    for fam, s in (("turn", "2"), ("speed_rpm", "2"), ("speed_lin", "2"), ("rpm_lag", "0")):
+    tables = [("turn", "2"), ("speed_rpm", "2"), ("speed_lin", "2"), ("rpm_lag", "0")]
+    tables += [(fam, str(i)) for fam in GYRO_FAMILIES for i in range(3)]
+    for fam, s in tables:
         rows = ((summary.get(fam) or {}).get(s) or {}).get("table") or []
         if rows:
-            md += ["", "## %s (stride %s)" % (fam, s), "", "| lag s | n | r | slope | agree | disagree |",
-                   "|---|---|---|---|---|---|"]
-            md += ["| %s | %s | %s | %s | %s | %s |" % (r["lag_s"], r["n"], r["corr"], r["slope0"],
-                                                       r["agree"], r["disagree"]) for r in rows]
+            label = "axis " + AXES[int(s)] if fam in GYRO_FAMILIES else "stride " + s
+            md += ["", "## %s (%s)" % (fam, label), "",
+                   "| lag s | n | r | slope0 | slope | agree | disagree |",
+                   "|---|---|---|---|---|---|---|"]
+            md += ["| %s | %s | %s | %s | %s | %s | %s |"
+                   % (r["lag_s"], r["n"], r["corr"], r["slope0"], r["slope"], r["agree"],
+                      r["disagree"]) for r in rows]
     if summary.get("speed_by_linear"):
         md += ["", "## GPS speed by commanded linear", "", "| linear | n | mean m/s | sd |", "|---|---|---|---|"]
         md += ["| %s | %s | %s | %s |" % (b["linear"], b["n"], b["mean_mps"], b["sd_mps"])
@@ -702,7 +846,9 @@ def main(argv=None):
     ap.add_argument("--index-url", default=INDEX_URL)
     ap.add_argument("--parts", default="all", help="comma-separated part numbers, or all")
     ap.add_argument("--rides-per-part", type=int, default=12)
-    ap.add_argument("--imu-per-part", type=int, default=1)
+    ap.add_argument("--imu-per-part", type=int, default=1, help="IMU samples kept per part")
+    ap.add_argument("--gyro-max-mb", type=float, default=40.0,
+                    help="skip a ride's IMU file above this size")
     ap.add_argument("--budget-min", type=float, default=140.0)
     ap.add_argument("--max-cd-mb", type=float, default=800.0)
     ap.add_argument("--out-dir", default="out")
@@ -729,7 +875,8 @@ def main(argv=None):
             if rz.cd_size > args.max_cd_mb * (1 << 20):
                 parts.append({"part": label, "skipped": "central directory %d bytes" % rz.cd_size})
                 continue
-            info = process_part(rz, label, args.rides_per_part, pooled, bins, rides, args.imu_per_part)
+            info = process_part(rz, label, args.rides_per_part, pooled, bins, rides,
+                                args.imu_per_part, args.gyro_max_mb)
         except Exception as exc:
             info = {"part": label, "error": "%s: %s" % (type(exc).__name__, exc)}
         info["seconds"] = round(time.monotonic() - t0, 1)

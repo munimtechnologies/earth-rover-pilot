@@ -9,9 +9,12 @@ right. If either is wrong, it turns away from every checkpoint.
 
 calibrate() measures both with a short routine on open ground:
 
-1. Spin in place (30 s at angular 0.4) and watch orientation. The spread of
-   the readings gives its full-turn value (360, 256 or 2*pi), and the total
-   turn gives the turn rate.
+1. Spin in place (30 s at angular 0.4, longer if needed) and watch
+   orientation. The spread of the readings gives its full-turn value (360, 256
+   or 2*pi), and the total turn gives the turn rate. A rover that turns at
+   about 30 deg/s per unit of angular, as the FrodoBots-2K rides show, needs a
+   little more than 30 s for a whole turn at 0.4, so the spin goes on in 10 s
+   steps until a whole turn shows, up to 90 s.
 2. Drive straight (20 s at linear 0.4) and fit the GPS course.
 3. Turn about 90 degrees with a positive angular, then drive straight again.
 
@@ -100,13 +103,16 @@ def fit_course(points, min_move_m=3.0):
 
 
 def calibrate(rover, clock=time.monotonic, sleep=time.sleep, spin_s=30.0, drive_s=20.0,
-              linear=0.4, angular=0.4, settle_s=2.0, rate_hz=10.0, fix_timeout_s=30.0):
+              linear=0.4, angular=0.4, settle_s=2.0, rate_hz=10.0, fix_timeout_s=30.0,
+              max_spin_s=90.0, spin_step_s=10.0):
     """Run the routine on `rover` (SdkClient or SimRover) and return a dict.
 
     On success it has ok=True and the keys rover_pilot.Conventions.from_dict
     reads: orientation_scale, orientation_clockwise, angular_right_positive
     and bias_deg. It also has the measured turn rate and speed at full command.
     Commands go to the rover as they are, without any conventions applied.
+    The spin lasts `spin_s`, then goes on `spin_step_s` at a time until the
+    readings show a whole turn or it has lasted `max_spin_s`.
     """
     period = 1.0 / rate_hz
     out = {"ok": False}
@@ -143,6 +149,9 @@ def calibrate(rover, clock=time.monotonic, sleep=time.sleep, spin_s=30.0, drive_
             return None
         return fit[0], fit[1], circular_mean_deg(degrees)
 
+    def orientations(samples):
+        return [v for v in (_number(d.get("orientation")) for _, d in samples) if v is not None]
+
     try:
         end = clock() + fix_timeout_s
         while True:
@@ -154,9 +163,14 @@ def calibrate(rover, clock=time.monotonic, sleep=time.sleep, spin_s=30.0, drive_
             rover.control(0.0, 0.0)
             sleep(0.5)
 
+        spin_t0 = clock()
         spin = drive(0.0, angular, spin_s)
-        raw = [v for v in (_number(d.get("orientation")) for _, d in spin) if v is not None]
+        raw = orientations(spin)
         scale = detect_scale(raw)
+        while scale is None and clock() - spin_t0 < max_spin_s:
+            spin += drive(0.0, angular, spin_step_s)
+            raw = orientations(spin)
+            scale = detect_scale(raw)
         if scale is None:
             return fail("orientation did not show one full turn while spinning in place; "
                         "spin for longer, or check that /data has orientation")
@@ -167,6 +181,7 @@ def calibrate(rover, clock=time.monotonic, sleep=time.sleep, spin_s=30.0, drive_
         spin_deg = total * 360.0 / scale
         yaw_dps = abs(spin_deg) / max(spin[-1][0] - spin[0][0], 1e-6)
         out.update(orientation_scale=scale, spin_deg=round(spin_deg, 1),
+                   spin_s=round(spin[-1][0] - spin[0][0], 1),
                    yaw_dps_at_full=round(yaw_dps / angular, 1))
 
         first = drive(linear, 0.0, drive_s)

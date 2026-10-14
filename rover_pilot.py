@@ -22,11 +22,14 @@ What it adds over a plain bearing-follower:
   (calibrate.py, --calibrate) and applied to the mission (--calibration).
   Without a calibration, a real rover is driven with a positive angular
   turning left, as the FrodoBots-2K rides show (FINDINGS-frodobots-2k.md).
+- Optionally, a late GPS fix is moved forward by the driving commanded since
+  it was taken (--gps-lag); on the FrodoBots-2K rides the GPS runs about
+  1.5 s behind the wheels.
 - Being stuck (driving with no GPS progress) triggers a back-up-and-turn move.
 - Each leg is summed up (time, reports, recoveries) in the result and the log.
-- A built-in simulator (command latency, GPS noise and dropouts, compass bias,
-  obstacles and a rendered front camera) lets the whole loop be tested
-  without a rover.
+- A built-in simulator (command latency, GPS noise, delay and dropouts, compass
+  bias, obstacles and a rendered front camera) lets the whole loop be tested
+  without a rover; --sim-real makes it move like the rovers in FrodoBots-2K.
 
 Standard library only. By MV2 of Munim, Inc.; written with AI agents.
 """
@@ -44,7 +47,7 @@ import time
 import urllib.error
 import urllib.request
 
-__version__ = "0.6.0"
+__version__ = "0.7.0"
 
 EARTH_RADIUS_M = 6371000.0
 M_PER_DEG = EARTH_RADIUS_M * math.pi / 180.0
@@ -60,6 +63,11 @@ DEMO_OBSTACLES = [(20.3, 14.6, 1.0), (62.5, 12.0, 1.0)]
 # For --simulate --sim-quirks: orientation reads 0-255 counter-clockwise and a
 # positive angular turns left.
 SIM_QUIRKS = {"orientation_scale": 256.0, "orientation_clockwise": False, "angular_sign": -1.0}
+# For --simulate --sim-real: move like the rovers in FrodoBots-2K
+# (FINDINGS-frodobots-2k.md): 0.79 m/s per unit of linear, wheels 0.8 s behind
+# the command and GPS 1.5 s behind the wheels. The yaw rate is not measured yet,
+# so the simulator's own 60 deg/s per unit is kept.
+SIM_REAL = {"max_speed_mps": 0.79, "latency_s": 0.8, "gps_delay_s": 1.5}
 # What to assume on a real rover without --calibration. A positive angular
 # turns it left: on 279 FrodoBots-2K rides the GPS course turned against the
 # commanded angular 440 times to 57 (FINDINGS-frodobots-2k.md), and the SDK's
@@ -243,6 +251,46 @@ class GpsFilter:
                 and t - self.fix_t <= self.max_age_s)
 
 
+class LagCompensator:
+    """Moves a late GPS fix forward by the driving commanded since it was taken.
+
+    A fix first seen at fix_t shows where the rover was gps_lag_s earlier, and
+    a command moves the rover cmd_latency_s after it is sent, so the rover has
+    since driven what was commanded between fix_t - gps_lag_s - cmd_latency_s
+    and now - cmd_latency_s. Each unit of linear is taken as speed_mps.
+    """
+
+    def __init__(self, gps_lag_s, cmd_latency_s=0.8, speed_mps=0.79, keep_s=10.0):
+        self.gps_lag_s = gps_lag_s
+        self.cmd_latency_s = cmd_latency_s
+        self.speed_mps = speed_mps
+        self.keep_s = gps_lag_s + cmd_latency_s + keep_s
+        self._cmds = collections.deque()
+
+    def record(self, t, linear, heading_deg):
+        """A command sent at t while the heading was heading_deg (None if unknown)."""
+        self._cmds.append((t, linear, heading_deg))
+        while len(self._cmds) > 1 and self._cmds[1][0] < t - self.keep_s:
+            self._cmds.popleft()
+
+    def offset(self, t, fix_t):
+        """(north_m, east_m) the rover has driven that the fix seen at fix_t doesn't show."""
+        a = fix_t - self.gps_lag_s - self.cmd_latency_s
+        b = t - self.cmd_latency_s
+        north = east = 0.0
+        cmds = list(self._cmds)
+        for k, (t0, linear, heading) in enumerate(cmds):
+            t1 = cmds[k + 1][0] if k + 1 < len(cmds) else t
+            lo, hi = max(t0, a), min(t1, b)
+            if hi <= lo or heading is None or linear == 0.0:
+                continue
+            d = linear * self.speed_mps * (hi - lo)
+            r = math.radians(heading)
+            north += d * math.cos(r)
+            east += d * math.sin(r)
+        return north, east
+
+
 class HeadingEstimator:
     """Compass heading corrected by a bias learned from GPS course over ground."""
 
@@ -404,13 +452,19 @@ class Pilot:
 
     `conventions` (Conventions) says how this rover's orientation and angular
     run; by default, degrees clockwise and positive angular turning right.
+
+    `gps_lag_s`, if above 0, is how late the GPS is: the rover's position is
+    then taken as the last fix moved forward by the driving commanded since
+    (LagCompensator, with `cmd_latency_s` and `speed_mps_at_full`) instead of
+    the smoothed fixes.
     """
 
     def __init__(self, rover, clock=time.monotonic, sleep=time.sleep,
                  steering=None, rate_hz=10.0, report_radius_m=10.0,
                  hold_radius_m=3.0, retry_s=2.0, settle_s=1.5,
                  stuck_window_s=10.0, stuck_min_move_m=1.5, planner=None,
-                 replan_m=30.0, replan_s=30.0, vision=None, conventions=None, log=None):
+                 replan_m=30.0, replan_s=30.0, vision=None, conventions=None,
+                 gps_lag_s=0.0, cmd_latency_s=0.8, speed_mps_at_full=0.79, log=None):
         self.rover = rover
         self.clock = clock
         self.sleep = sleep
@@ -427,12 +481,15 @@ class Pilot:
         self.replan_s = replan_s
         self.vision = vision
         self.conventions = conventions or Conventions()
+        self.lag = (LagCompensator(gps_lag_s, cmd_latency_s, speed_mps_at_full)
+                    if gps_lag_s > 0 else None)
         self.log = log
         self.gps = GpsFilter()
         self.heading = HeadingEstimator()
         if self.conventions.bias_deg is not None:
             self.heading.bias = self.conventions.bias_deg
         self.cmd = (0.0, 0.0)
+        self.pos = (None, None)
         self.reached = []
         self.legs = []
         self.reports = 0
@@ -448,9 +505,12 @@ class Pilot:
         self._leg_m = None
         self._leg_reports = 0
         self._leg_recoveries = 0
+        self._heading_now = None
 
     def send(self, linear, angular):
         self.cmd = (linear, angular)
+        if self.lag is not None:
+            self.lag.record(self.clock(), linear, self._heading_now)
         self.rover.control(linear, self.conventions.angular(angular))
 
     def stop(self):
@@ -470,6 +530,14 @@ class Pilot:
         if self.log:
             self.log(dict({"t": round(self.clock(), 2), "event": event}, **fields))
 
+    def _position(self, t):
+        """Where the rover is taken to be: the smoothed GPS or, with gps_lag_s,
+        the last fix moved forward by the driving commanded since it was seen."""
+        if self.lag is None or self.gps.raw is None:
+            return self.gps.lat, self.gps.lon
+        north, east = self.lag.offset(t, self.gps.raw_t)
+        return offset_latlon(self.gps.raw[0], self.gps.raw[1], north, east)
+
     def _start_leg(self):
         self._leg_t0, self._leg_m = self.clock(), None
         self._leg_reports, self._leg_recoveries = self.reports, self.recoveries
@@ -485,6 +553,7 @@ class Pilot:
         self._start_leg()
 
     def _stuck(self, t, linear):
+        # Measured on the GPS itself: a predicted position would always move.
         h = self._history
         h.append((t, self.gps.lat, self.gps.lon, linear))
         while t - h[0][0] > self.stuck_window_s:
@@ -505,7 +574,7 @@ class Pilot:
     def _plan(self, t, seq, lat, lon):
         self._path_seq, self._plan_t = seq, t
         try:
-            points = self.planner(self.gps.lat, self.gps.lon, lat, lon)
+            points = self.planner(self.pos[0], self.pos[1], lat, lon)
         except Exception as e:  # a failed plan must not stop the rover; it heads straight on
             points = None
             self._log("plan-failed", seq=seq, error=str(e))
@@ -522,15 +591,15 @@ class Pilot:
             self._plan(t, seq, lat, lon)
         if self.path is None:
             return lat, lon
-        aim, off = self.path.target(self.gps.lat, self.gps.lon)
+        aim, off = self.path.target(*self.pos)
         if off > self.replan_m and stale:
             self._plan(t, seq, lat, lon)
             if self.path is None:
                 return lat, lon
-            aim, _ = self.path.target(self.gps.lat, self.gps.lon)
+            aim, _ = self.path.target(*self.pos)
         return aim
 
-    def _steer(self, t, distance, aim_lat, aim_lon, compass):
+    def _steer(self, t, distance, aim_lat, aim_lon, heading):
         while self._maneuver and t >= self._maneuver[0][0]:
             self._maneuver.pop(0)
         if self._maneuver:
@@ -538,12 +607,11 @@ class Pilot:
         if distance < self.hold_radius_m:
             self._history.clear()
             return 0.0, 0.0
-        heading = self.heading.heading(compass, t)
         if heading is None:
             # No compass and no recent course: drive straight to learn one from GPS.
             error, scale = 0.0, 0.5
         else:
-            target = bearing_deg(self.gps.lat, self.gps.lon, aim_lat, aim_lon)
+            target = bearing_deg(self.pos[0], self.pos[1], aim_lat, aim_lon)
             error, scale = wrap180(target - heading), 1.0
         if self.vision is not None and abs(error) <= self.steering.turn_in_place_deg:
             error, seen = self.vision.advise(t, error, distance)
@@ -598,14 +666,16 @@ class Pilot:
                 new_fix = self.gps.update(data.get("latitude"), data.get("longitude"), tick)
                 compass = self.conventions.heading(data.get("orientation"))
                 self.heading.update(tick, new_fix, compass, *self.cmd)
+                self._heading_now = self.heading.heading(compass, tick)
                 if not self.gps.has_fix(tick):
                     self._history.clear()
                     self.stop()
                     self._wait(tick)
                     continue
                 seq, target_lat, target_lon = remaining[0]
-                distance = haversine_m(self.gps.lat, self.gps.lon, target_lat, target_lon)
-                if self.gps.raw is not None:
+                self.pos = self._position(tick)
+                distance = haversine_m(self.pos[0], self.pos[1], target_lat, target_lon)
+                if self.lag is None and self.gps.raw is not None:
                     distance = min(distance, haversine_m(self.gps.raw[0], self.gps.raw[1],
                                                          target_lat, target_lon))
                 if self._leg_m is None:
@@ -629,7 +699,7 @@ class Pilot:
                               server_distance_m=res.get("distance"))
                     next_try = self.clock() + self.retry_s
                 aim_lat, aim_lon = self._aim(tick, seq, target_lat, target_lon)
-                linear, angular = self._steer(tick, distance, aim_lat, aim_lon, compass)
+                linear, angular = self._steer(tick, distance, aim_lat, aim_lon, self._heading_now)
                 self.send(linear, angular)
                 if self._last_log_t is None or tick - self._last_log_t >= 1.0:
                     self._last_log_t = tick
@@ -811,9 +881,10 @@ class SimRover:
     """Offline stand-in for the SDK: a skid-steer rover with the usual troubles.
 
     Commands take effect after `latency_s`; GPS updates every `gps_period_s`
-    with noise and occasional no-fix readings; the compass is off by
-    `compass_error_deg`. Checkpoints are judged on the reported GPS, like the
-    real server, and the last one is refused (503) unless the rover is stopped.
+    with noise and occasional no-fix readings, showing where the rover was
+    `gps_delay_s` earlier; the compass is off by `compass_error_deg`.
+    Checkpoints are judged on the reported GPS, like the real server, and the
+    last one is refused (503) unless the rover is stopped.
     `obstacles` are (north_m, east_m, radius_m) hedges the rover can't drive
     through; camera_frame() renders what its front camera would see.
     By default orientation reads degrees clockwise and a positive angular
@@ -827,7 +898,7 @@ class SimRover:
                  gps_dropout=0.05, compass_error_deg=-25.0, compass_noise_deg=3.0,
                  tolerance_m=15.0, dt=0.1, blocked_until_s=0.0, obstacles=(),
                  rover_radius_m=0.2, obstacle_height_m=1.0, orientation_scale=360.0,
-                 orientation_clockwise=True, angular_sign=1.0):
+                 orientation_clockwise=True, angular_sign=1.0, gps_delay_s=0.0):
         self.rng = random.Random(seed)
         self.seed = seed
         self.lat0, self.lon0 = start
@@ -840,6 +911,7 @@ class SimRover:
         self.gps_noise_m = gps_noise_m
         self.gps_period_s = gps_period_s
         self.gps_dropout = gps_dropout
+        self.gps_delay_s = gps_delay_s
         self.compass_error = compass_error_deg
         self.compass_noise_deg = compass_noise_deg
         self.tolerance_m = tolerance_m
@@ -853,6 +925,7 @@ class SimRover:
         self.angular_sign = angular_sign
         self.contacts = 0  # steps on which an obstacle stopped the rover
         self.min_gap = math.inf  # closest the rover's centre came to an obstacle's edge
+        self.travelled = 0.0  # metres driven
         self.t = 0.0
         self.east = self.north = 0.0
         self.queue = collections.deque()
@@ -862,15 +935,27 @@ class SimRover:
         self.reverse_seen = False
         self._noise = None
         self._frames = 0
+        self._track = collections.deque([(0.0, 0.0, 0.0)])  # (t, north, east) for gps_delay_s
         self._sample_gps()
 
+    def _delayed_position(self):
+        """(north, east) where the rover was gps_delay_s ago."""
+        if self.gps_delay_s <= 0:
+            return self.north, self.east
+        cutoff = self.t - self.gps_delay_s + 1e-9
+        while len(self._track) > 1 and self._track[1][0] <= cutoff:
+            self._track.popleft()
+        _, north, east = self._track[0]
+        return north, east
+
     def _sample_gps(self):
+        north, east = self._delayed_position()
         if self.rng.random() < self.gps_dropout:
             self.gps = (NO_FIX, NO_FIX)
         else:
             self.gps = offset_latlon(self.lat0, self.lon0,
-                                     self.north + self.rng.gauss(0, self.gps_noise_m),
-                                     self.east + self.rng.gauss(0, self.gps_noise_m))
+                                     north + self.rng.gauss(0, self.gps_noise_m),
+                                     east + self.rng.gauss(0, self.gps_noise_m))
         self._next_gps_t = self.t + self.gps_period_s
 
     def _hits_obstacle(self, north, east):
@@ -899,9 +984,12 @@ class SimRover:
                 self.contacts += 1
             else:
                 self.north, self.east = north, east
+                self.travelled += abs(v)
         for on, oe, r in self.obstacles:
             self.min_gap = min(self.min_gap, math.hypot(self.north - on, self.east - oe) - r)
         self.t += self.dt
+        if self.gps_delay_s > 0:
+            self._track.append((self.t, self.north, self.east))
         if self.t >= self._next_gps_t - 1e-9:
             self._sample_gps()
 
@@ -982,6 +1070,9 @@ def main(argv=None):
     p.add_argument("--sim-quirks", action="store_true",
                    help="(simulator) orientation reads 0-255 counter-clockwise and a "
                         "positive angular turns left")
+    p.add_argument("--sim-real", action="store_true",
+                   help="(simulator) move like the rovers in FrodoBots-2K: 0.79 m/s at full "
+                        "linear, commands 0.8 s late and GPS 1.5 s behind the wheels")
     p.add_argument("--list-missions", action="store_true",
                    help="print the missions the SDK lists for this bot (GET /missions) and exit")
     p.add_argument("--no-start", action="store_true",
@@ -989,6 +1080,10 @@ def main(argv=None):
     p.add_argument("--cruise", type=float, default=0.6, help="cruise linear command, 0-1")
     p.add_argument("--report-radius", type=float, default=10.0,
                    help="report a checkpoint from this many metres (server tolerance is 15)")
+    p.add_argument("--gps-lag", type=float, default=0.0,
+                   help="seconds the GPS runs behind the rover (FrodoBots-2K: about 1.5); "
+                        "each fix is moved forward by the driving commanded since, assuming "
+                        "0.79 m/s at full linear and commands 0.8 s late (0 = off)")
     p.add_argument("--osm", help="plan each leg on this saved Overpass JSON "
                                  "(see: python route_planner.py fetch)")
     p.add_argument("--fetch-osm", action="store_true",
@@ -1068,9 +1163,13 @@ def main(argv=None):
     try:
         steering = Steering(cruise=args.cruise)
         if args.simulate:
+            sim_kw = {}
+            if args.sim_quirks:
+                sim_kw.update(SIM_QUIRKS)
+            if args.sim_real:
+                sim_kw.update(SIM_REAL)
             rover = SimRover(DEMO_MISSION, seed=args.seed,
-                             obstacles=DEMO_OBSTACLES if args.obstacles else (),
-                             **(SIM_QUIRKS if args.sim_quirks else {}))
+                             obstacles=DEMO_OBSTACLES if args.obstacles else (), **sim_kw)
             clock, sleep = rover.clock, rover.sleep
             source = (lambda: rover.camera_frame(camera)) if camera else None
         else:
@@ -1096,7 +1195,7 @@ def main(argv=None):
             vision = free_space.VisionGuard(source, camera=camera) if camera else None
             pilot = Pilot(rover, clock=clock, sleep=sleep, steering=steering,
                           report_radius_m=args.report_radius, planner=planner, vision=vision,
-                          conventions=conventions, log=log)
+                          conventions=conventions, gps_lag_s=args.gps_lag, log=log)
             result = pilot.run(start=not args.no_start, timeout_s=args.timeout)
             if args.simulate and args.obstacles:
                 result["sim_contacts"] = rover.contacts
