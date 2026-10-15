@@ -1,6 +1,6 @@
 # How Earth Rovers respond to commands: measured from FrodoBots-2K
 
-MV2 of Munim, Inc., 14–15 October 2026. The analysis code (`frodo_motion.py`, `sim_study.py`, `gain_study.py`, `frodo_frames.py`) was written with AI agents.
+MV2 of Munim, Inc., 14–15 October 2026. The analysis code (`frodo_motion.py`, `sim_study.py`, `gain_study.py`, `frodo_frames.py`, `gps_noise_study.py`) was written with AI agents.
 
 The Earth Rover SDK says `angular` is "rotation speed left/right (-1 to 1)" but not which way is positive. It doesn't give the speed or turn rate at a given command, the gyroscope's units or how late the GPS is. [FrodoBots-2K](https://huggingface.co/datasets/BitRobot/FrodoBots-2K) logs every command a human driver sent, the four wheel RPMs, the GPS and the IMU for about 2,000 hours of Earth Rover rides. So the answers can be measured instead of guessed.
 
@@ -87,6 +87,38 @@ What this means:
 - **Driving faster wins by far the most in simulation** (39% less time at cruise 1.0), but the cruise **stays at 0.6**. The simulator has no pedestrians, kerbs, slopes or rough ground, and the SDK suggests 0.3–0.5 for first tests. Speed is a choice for whoever runs the rover (`--cruise`), not something this study can settle.
 - Limits: simulated rovers only, with a simple motion model fitted to the recorded rides; 3 missions; one GPS noise level. Real rovers may differ.
 
+## GPS error that drifts instead of jittering (simulation)
+
+The simulator gave every GPS fix its own independent 1.5 m error. A real receiver's error is correlated in time: it wanders a few metres off and stays there for tens of seconds (a Gauss-Markov process is the usual model). `gps_noise_study.py` 0.1.0 flew the same 3 missions on 30 seeds on rover_pilot 0.8.0 (the simulator and pilot logic are unchanged since), steered as a real rover is (`ROVER_STEERING`), under 7 GPS error models: independent fixes with 1.5 or 3 m per axis, and drifting error of 1.5, 3 or 6 m per axis with a correlation time T of 10, 30 or 120 s. It used 3 rovers: one that moves like the recorded ones (`SIM_REAL`, 30°/s per unit), the same with a GPS fix only every 2 s, and a stand-in for the Earth Rover Mini+ that the challenge now uses (a fix every 2 s, as the SDK README says, and 1.11 m/s at full `linear`, its 4 km/h top speed; that the top speed comes at full `linear` is an assumption). It also flew 4 pilot variants: no GPS smoothing (alpha 1), heavier smoothing (alpha 0.15), and reporting checkpoints from 7 or 12 m instead of 10. That is 9,450 missions; it took 14 minutes, and its 11 tests passed.
+
+**Every one of the 9,450 missions was completed**, under every error model, including 6 m of drifting error.
+
+The checkpoint server judges the rover's reported GPS, as the real one does, so the study also recorded how far the rover truly was from each checkpoint when the server credited it.
+
+| Rover | GPS error | Time vs 1.5 m white | Compass bias error, median / p90 | Credits with the rover truly beyond 15 m |
+|---|---|---|---|---|
+| recorded-like, 1 s fixes | white 1.5 m (the old simulator) | 1.000 | 2.2° / 5.1° | 0 of 390 |
+| recorded-like, 1 s fixes | white 3 m | 1.100 | 8.2° / 29.1° | 22 of 390 (6%) |
+| recorded-like, 1 s fixes | drift 1.5 m, T 30 s | 1.030 | 2.1° / 5.6° | 0 of 390 |
+| recorded-like, 1 s fixes | drift 3 m, T 10 s | 1.123 | 6.7° / 16.5° | 16 of 390 (4%) |
+| recorded-like, 1 s fixes | drift 3 m, T 30 s | 1.083 | 5.0° / 12.6° | 8 of 390 (2%) |
+| recorded-like, 1 s fixes | drift 3 m, T 120 s | 1.032 | 2.2° / 6.8° | 12 of 390 (3%) |
+| recorded-like, 1 s fixes | drift 6 m, T 30 s | 1.170 | 10.9° / 30.6° | 92 of 390 (24%) |
+| Mini+ stand-in, 2 s fixes | white 1.5 m | 1.000 | 3.0° / 8.0° | 0 of 390 |
+| Mini+ stand-in, 2 s fixes | drift 3 m, T 10 s | 1.047 | 4.5° / 11.8° | 10 of 390 (3%) |
+| Mini+ stand-in, 2 s fixes | drift 3 m, T 30 s | 1.028 | 4.1° / 8.3° | 10 of 390 (3%) |
+| Mini+ stand-in, 2 s fixes | drift 3 m, T 120 s | 1.022 | 2.2° / 5.4° | 11 of 390 (3%) |
+| Mini+ stand-in, 2 s fixes | drift 6 m, T 30 s | 1.101 | 9.4° / 21.5° | 60 of 390 (15%) |
+
+What it shows:
+- **How fast the error moves matters more than how big it is.** The pilot learns the compass bias by fitting a line through the fixes of a straight stretch. 3 m of error that drifts over 120 s barely bends that line (bias error 2.2°, 3% slower); the same 3 m changing over 10 s bends it (6.7°, 12% slower), about as much as 3 m of independent jitter. The slowdowns come with the wrong compass bias: the rover heads a few degrees off and corrects later.
+- **With large drifting error, many credits come when the rover is truly beyond the tolerance.** The server can't tell, because it judges the same GPS. At 6 m of drift, 15–24% of the credited checkpoints were credited with the rover more than 15 m from them in truth, and some more than 28 m. With 1.5 m of error, none were. In the real challenge this would apply to AI and human drivers alike: the ~15 m tolerance is 15 m from where the GPS says, not from where the rover is.
+- **Keep the smoothing.** Without it (alpha 1) the pilot was slower with 14 of the 21 rover × error combinations, faster with 1, and needed up to ten times as many back-up moves (10.9 against 1.1 per run on the recorded-like rover with 1.5 m jitter). Heavier smoothing (alpha 0.15) was mixed: faster with 3 combinations, slower with 8, no clear difference with 10. The shipped alpha 0.3 stays.
+- **Reporting from 12 m instead of 10 was faster with every rover and error model**, in all 63 mission groups (sign test p < 0.05 in each), by about 4–7%. On the 2 s rovers it never added a refused report. On the 1 s rover with 3 m jitter, refused reports rose from 0.36 to 0.59 per run, and with every error model more credits came with the rover truly beyond 15 m (at 3 m drift, T 30 s: 40 of 390 against 8). Reporting from 7 m was slower everywhere (7–12%) and cut those far credits by half or more, but didn't end them (41 of 390 at 6 m drift on the 1 s rover). The default **stays at 10 m** until a real rover shows how its server answers early reports; `--report-radius 12` is there for whoever wants the time.
+- **A fix only every 2 s costs a little.** On the recorded-like rover with 1.5 m jitter, 2 s fixes made the missions slower by a median of 4.5–10 s (p = 0.04, 0.008 and 0.016 on the 3 missions). The Mini+ stand-in is much faster overall only because it is assumed to drive at 1.11 m/s.
+- **Which row is the real one isn't known yet.** `frodo_gps.py`, which measures the error of the recorded rovers' GPS against their wheel sensors (standing still and driving straight), is queued. Its answer picks the model the simulator should use.
+- Limits: simulated rovers only; 3 short missions (130–236 m); Gauss-Markov error, the same on both axes; the Mini+ speed is assumed. The server in the simulator answers every report at once and never penalises a refused one.
+
 ## The front camera on real frames: phantom obstacles, measured
 
 `free_space.py`, the camera layer behind `--vision`, scans each front-camera frame for where the ground stops looking like the patch just ahead of the rover. It had only seen frames the simulator drew.
@@ -129,11 +161,12 @@ What this means:
 python frodo_motion.py --out-dir out --rides-per-part 12 --imu-per-part 1 --gyro-max-mb 40
 python sim_study.py --out-dir out-sim --seeds 30
 python gain_study.py --out-dir out-gains --seeds 30
+python gps_noise_study.py --out-dir out-gps-noise --seeds 30
 python frodo_frames.py --out-dir out-frames --parts all --rides-per-part 2 --segments 4 --offsets 2,7,12
 ```
 
-`frodo_motion.py`, `sim_study.py` and `gain_study.py` use the standard library only. Our `frodo_motion.py` run took 19 minutes and read about 317 MB. `out/summary.json` has every table and `out/rides.jsonl` has one line per ride. `sim_study.py` took about a minute and `gain_study.py` about 6 minutes; both write `report.md`, `summary.json` and `runs.jsonl`. The study numbers above were made with rover_pilot 0.7.0; later versions leave the simulator's defaults as they were, so they give the same numbers. `frodo_frames.py` needs ffmpeg and Pillow; it writes `report.md`, `summary.json`, `frames.jsonl` (every frame's scan results and label) and a small thumbnail of each frame.
+`frodo_motion.py`, `sim_study.py`, `gain_study.py` and `gps_noise_study.py` use the standard library only. Our `frodo_motion.py` run took 19 minutes and read about 317 MB. `out/summary.json` has every table and `out/rides.jsonl` has one line per ride. `sim_study.py` took about a minute, `gain_study.py` about 6 minutes and `gps_noise_study.py` about 14; each writes `report.md`, `summary.json` and `runs.jsonl`. The study numbers above were made with rover_pilot 0.7.0 (`sim_study.py`, `gain_study.py`) and 0.8.0 (`gps_noise_study.py`); later versions leave the simulator and the pilot's steering and GPS handling as they were, so they give the same numbers. `frodo_frames.py` needs ffmpeg and Pillow; it writes `report.md`, `summary.json`, `frames.jsonl` (every frame's scan results and label) and a small thumbnail of each frame.
 
 ## Licence and credit
 
-Data: FrodoBots-2K by FrodoBots Lab, CC BY-SA 4.0. The numbers and tables in this file derive from it and are shared under CC BY-SA 4.0. The code (`frodo_motion.py`, `sim_study.py`, `gain_study.py`, `frodo_frames.py` and their tests) is Apache-2.0, like the rest of this repository. Not affiliated with FrodoBots, BitRobot or the Earth Rover Challenge organisers.
+Data: FrodoBots-2K by FrodoBots Lab, CC BY-SA 4.0. The numbers and tables in this file derive from it and are shared under CC BY-SA 4.0. The code (`frodo_motion.py`, `sim_study.py`, `gain_study.py`, `gps_noise_study.py`, `frodo_frames.py` and their tests) is Apache-2.0, like the rest of this repository. Not affiliated with FrodoBots, BitRobot or the Earth Rover Challenge organisers.

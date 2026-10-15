@@ -6,7 +6,7 @@ The [Earth Rover Challenge](https://earth-rover-challenge.github.io/) uses this 
 
 Made by **MV2 of Munim, Inc.** The code was written with AI agents.
 
-**Status (v0.9.0):** the pilot has been tested only against the built-in simulator, synthetic maps and recorded data. It has not driven a real rover yet. What real rovers do with its commands has been measured on 279 recorded rides from the public FrodoBots-2K dataset ([FINDINGS-frodobots-2k.md](FINDINGS-frodobots-2k.md)), the simulator can move like them (`--sim-real`), and the steering for a real rover was chosen by a simulation study on that motion (`gain_study.py`). v0.9.0 reads a real rover's camera with the settings that saw the fewest phantom obstacles on 493 recorded front-camera frames: about 1 in 12 clear paths instead of 1 in 3 (see "Front camera" below). It is still experimental. Treat the defaults as a starting point and tune them on the first real runs, starting with `--calibrate`. Since v0.8.1 the rover is stopped when its telemetry stops coming in (see "Lost telemetry" below).
+**Status (v0.9.1):** the pilot has been tested only against the built-in simulator, synthetic maps and recorded data. It has not driven a real rover yet. What real rovers do with its commands has been measured on 279 recorded rides from the public FrodoBots-2K dataset ([FINDINGS-frodobots-2k.md](FINDINGS-frodobots-2k.md)), the simulator can move like them (`--sim-real`), and the steering for a real rover was chosen by a simulation study on that motion (`gain_study.py`). v0.9.0 reads a real rover's camera with the settings that saw the fewest phantom obstacles on 493 recorded front-camera frames: about 1 in 12 clear paths instead of 1 in 3 (see "Front camera" below). It is still experimental. v0.9.1 adds `gps_noise_study.py`: the pilot completed all 9,450 simulated missions under GPS error that drifts as a real receiver's does, up to 6 m (see "Drifting GPS" below). Treat the defaults as a starting point and tune them on the first real runs, starting with `--calibrate`. Since v0.8.1 the rover is stopped when its telemetry stops coming in (see "Lost telemetry" below).
 
 ## What the recorded rides say
 
@@ -84,7 +84,7 @@ Options:
 - `--cruise 0.6`: forward command, 0 to 1. The SDK suggests 0.3–0.5 for first tests. On the recorded rides, 0.6 covered about 0.46 m/s.
 - `--max-angular`: the largest `angular` the pilot sends, 0 to 1. Default 1.0 on a real rover, 0.6 in the simulator.
 - `--turn-in-place`: turn in place when the heading error is above this many degrees. Default 90 on a real rover, 60 in the simulator.
-- `--report-radius 10`
+- `--report-radius 10`: report a checkpoint once the rover is this many metres from it (the server's tolerance is about 15). In simulation 12 was 4–7% faster, but with noisy GPS more of its credits came with the rover truly beyond 15 m; see "Drifting GPS" below.
 - `--gps-lag 0`: seconds the GPS runs behind the rover. Above 0, each fix is moved forward by the driving commanded since it was taken, assuming 0.79 m/s at full `linear` and commands 0.8 s late. Off by default; see "Late GPS" below.
 - `--telemetry-timeout 5`: stop the rover while no new telemetry has come in for this many seconds; 0 turns it off. See "Lost telemetry" below.
 - `--osm area.json`: plan each leg on a saved map area (see below).
@@ -139,6 +139,22 @@ python sim_study.py --out-dir out --seeds 30
 ```
 
 Every mission was completed either way. On the real-like rover turning at the measured 30°/s, the correction saved a few seconds at most, and the result could be chance (17 faster to 11 slower on the demo, p = 0.34; 16 to 8 on the zigzag, p = 0.15). At 60°/s it made the zigzag slower (7 faster to 20 slower, p = 0.019). In every group it about doubled to tripled the refused checkpoint reports, because the corrected position reaches the report radius before the GPS the server judges by does. So it stays off by default. The full table is in [FINDINGS-frodobots-2k.md](FINDINGS-frodobots-2k.md). This is a simulation result; a real rover may differ.
+
+## Drifting GPS (`gps_noise_study.py`)
+
+The simulator gives every GPS fix its own independent 1.5 m error. A real receiver's error drifts: it wanders a few metres off and stays there for tens of seconds. `gps_noise_study.py` flies 3 missions on 30 seeds under 7 error models (independent 1.5 or 3 m; drifting 1.5, 3 or 6 m with a correlation time of 10, 30 or 120 s), on a rover that moves like the recorded ones, the same with a GPS fix every 2 s, and a stand-in for the Earth Rover Mini+ (a fix every 2 s, 1.11 m/s at full `linear`), with 4 pilot variants (9,450 missions, about 14 minutes):
+
+```
+python gps_noise_study.py --out-dir out --seeds 30
+```
+
+- Every mission was completed, even with 6 m of drifting error.
+- How fast the error moves matters more than its size. 3 m drifting over 120 s made the missions 3% slower; the same 3 m changing over 10 s made them 12% slower, mostly through a wrongly learned compass bias (median 6.7° off against 2.2°).
+- The server judges the reported GPS, so with 6 m of drift, 15–24% of the credited checkpoints were credited with the rover truly more than 15 m from them. That holds for any driver, human or AI.
+- The GPS smoothing stays: without it the pilot was slower with 14 of 21 rover × error combinations. Heavier smoothing was mixed.
+- Reporting from 12 m was faster everywhere (4–7%), but with noisy GPS more of its credits came with the rover truly beyond 15 m, and on the 1 s rover with 3 m jitter it added refused reports. The default stays 10 m until a real rover shows how its server answers; `--report-radius 12` is there to try.
+
+Which error model is the real one isn't known yet: `frodo_gps.py`, which measures the recorded rovers' GPS error against their wheel sensors, is queued. The full table is in [FINDINGS-frodobots-2k.md](FINDINGS-frodobots-2k.md). This is a simulation result; a real rover may differ.
 
 ## Calibrate a rover (`calibrate.py`)
 
@@ -263,11 +279,12 @@ Map data © [OpenStreetMap contributors](https://www.openstreetmap.org/copyright
 - Indoor and off-road tracks use image goals, not GPS. This pilot covers only GPS checkpoint missions.
 - The steering for a real rover comes from simulation. It still has to be checked on a real rover.
 - Wheel RPMs or the gyroscope could carry the position and heading between GPS fixes. Not tried yet.
+- How noisy and how fast-drifting a real rover's GPS is: measurement queued. With fast-drifting error the compass bias is learned worst, so a bias fit that uses the wheels or the gyroscope may be the next gain.
 
 ## Tests
 
 ```
-python -m unittest test_rover_pilot test_rover_defaults test_steering_defaults test_telemetry test_calibrate test_calibrate_real test_route_planner test_free_space test_free_space_skip test_vision_settings test_frodo_motion test_frodo_frames test_gps_lag test_gain_study -v
+python -m unittest test_rover_pilot test_rover_defaults test_steering_defaults test_telemetry test_calibrate test_calibrate_real test_route_planner test_free_space test_free_space_skip test_vision_settings test_frodo_motion test_frodo_frames test_gps_lag test_gain_study test_gps_noise_study -v
 ```
 
 The tests cover:
@@ -294,6 +311,7 @@ The tests cover:
 - `frodo_frames.py`: segment times in UTC, wheel speed, the distance driven straight after a frame and what ends it, event frames, the Wilson interval, each scan setting on open ground and with a hedge ahead, and the summary
 - late GPS: the compensator's offsets (straight, stopped and reversing, stale fixes, unknown heading), the simulator's GPS delay keeping its random sequence, zero lag being exactly the plain pilot, the corrected position running ahead of the fix, and `--sim-real --gps-lag 1.5` flying the demo
 - `gain_study.py`: the grid, the baseline being the simulator's steering, the real-like profiles, the sign test, picking the best setting, flying the demo, and the command line's outputs
+- `gps_noise_study.py`: the drifting error keeping its size and correlation, zero correlation being independent noise, zero correlation time being exactly the plain simulator, drifting error moving slowly while the rover stands still, flying the demo with 1 s and 2 s fixes and recording how far the rover truly was at each credit, the summary and verdicts, and the command line's outputs
 
 ## License
 
