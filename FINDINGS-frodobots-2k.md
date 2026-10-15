@@ -1,6 +1,6 @@
 # How Earth Rovers respond to commands: measured from FrodoBots-2K
 
-MV2 of Munim, Inc., 14 October 2026. The analysis code (`frodo_motion.py`, `sim_study.py`, `gain_study.py`) was written with AI agents.
+MV2 of Munim, Inc., 14–15 October 2026. The analysis code (`frodo_motion.py`, `sim_study.py`, `gain_study.py`, `frodo_frames.py`) was written with AI agents.
 
 The Earth Rover SDK says `angular` is "rotation speed left/right (-1 to 1)" but not which way is positive. It doesn't give the speed or turn rate at a given command, the gyroscope's units or how late the GPS is. [FrodoBots-2K](https://huggingface.co/datasets/BitRobot/FrodoBots-2K) logs every command a human driver sent, the four wheel RPMs, the GPS and the IMU for about 2,000 hours of Earth Rover rides. So the answers can be measured instead of guessed.
 
@@ -87,16 +87,32 @@ What this means:
 - **Driving faster wins by far the most in simulation** (39% less time at cruise 1.0), but the cruise **stays at 0.6**. The simulator has no pedestrians, kerbs, slopes or rough ground, and the SDK suggests 0.3–0.5 for first tests. Speed is a choice for whoever runs the rover (`--cruise`), not something this study can settle.
 - Limits: simulated rovers only, with a simple motion model fitted to the recorded rides; 3 missions; one GPS noise level. Real rovers may differ.
 
-## The front camera on real frames: a first look (negative)
+## The front camera on real frames: phantom obstacles, measured
 
-`free_space.py`, the camera layer behind `--vision`, had only seen frames the simulator drew. `frodo_frames.py` 0.1.0 read a few HLS video segments from 4 rides in parts 1 and 12 (about 55 MB) and ran the scan on one frame from each.
+`free_space.py`, the camera layer behind `--vision`, scans each front-camera frame for where the ground stops looking like the patch just ahead of the rover. It had only seen frames the simulator drew.
 
-- **Which stream is which.** Each ride has two video streams. `uid_s_1000` is 1024 × 576 H.264 at 20 fps in 16.5 s segments, a normal wide-angle view ahead: the **front camera**. `uid_s_1001` is 540 × 360 with a circular fisheye image that shows the rover's own rails and flag mast, most likely the rear camera (the rides also log `rear_camera_timestamps`). The audio is AAC, 48 kHz mono.
-- **Clocks.** A segment's file name is its start time in UTC, and it lines up with the control log's timestamps: on ride 18397 the control log ends at 04:32:23 UTC and the last video segment at about 04:32:25.
-- **The result.** On the 11 front-camera frames, the scan saw less than 5 m clear ahead on 10 and less than 1.2 m on 4 (median 1.76 m). Looking at the frames ourselves (small thumbnails, our own judgement, not a labelled set), 9 or 10 of the 11 show an open path at least 5 m ahead. So on a real rover, `--vision` as it stands would slow, swerve or turn in place for nothing most of the time.
-- **Why, from the frames.** Tree shadows across pavement; a sunlit, over-exposed paved plaza; and on one ride, parts of the rover's own body at the bottom edge of the frame. Those set the ground colour and block the bottom row, so all three frames of that ride read 0.53 m, the distance of the bottom row. On the fisheye stream every frame read 0.53 m, because the black border and the rover's body fill its bottom rows. The scan must only be used on the front camera.
-- **What changed.** `free_space.py` 0.4.0 adds `skip_rows`, which leaves out the bottom rows where the rover's body shows, both from the ground colour and from the scan. Its defaults are unchanged, and `--vision` now says that it is experimental. `frodo_frames.py` 0.2.0 measures the phantom rate properly on up to 576 front-camera frames from all 24 parts, using what the driver did next as the label: the distance driven straight on afterwards (from the wheel RPMs) is a lower bound on how far the way ahead was clear. It compares 8 variants of the scan and checks the video clock against the wheel motion. A variant becomes the default only if it clearly lowers the phantom rate.
-- Limits: 11 frames from 4 rides, judged by eye. This is why the measurement above is being run.
+**A first look (frodo_frames.py 0.1.0, negative).** On 11 front-camera frames from 4 rides, the default scan saw less than 5 m clear on 10, though by eye 9 or 10 showed an open path. The causes were tree shadows, an over-exposed plaza and the rover's own body at the bottom of the frame. That run also found which stream is which: `uid_s_1000` is the 1024 × 576 front camera (H.264, 20 fps, 16.5 s segments) and `uid_s_1001` a 540 × 360 fisheye that shows the rover's rails and mast, most likely the rear camera. A segment's file name is its start time in UTC, which lines up with the control log.
+
+**The measurement (frodo_frames.py 0.2.0).** It took 569 front-camera frames from 48 rides, 2 from each of the 24 parts, at 2, 7 and 12 s into 4 segments per ride (708 MB read, 23 minutes). 493 frames had control data at the frame's time. The label is what the driver did next: from the frame's time it adds up the distance driven (from the wheel RPMs, 0.0067 m/s per RPM) until the driver turned, stopped, reversed or 15 s passed. That distance is a lower bound on how far the way straight ahead was clear, because the human drove it. A **phantom stop** is a frame where the scan saw less than 1.2 m clear straight ahead (the guard turns in place) but the driver then went at least 2 m straight. A **phantom swerve** is less than 5 m clear (the guard bends or slows) when the driver went at least 5.5 m. Eight settings of the scan were fixed before the run. Wilson 95% intervals:
+
+| Setting | Phantom stops (of 110) | 95% CI | Phantom swerves (of 28) | 95% CI |
+|---|---|---|---|---|
+| default | 39 (35%) | 27–45% | 22 (79%) | 61–90% |
+| skip3 (leave out the 3 bottom rows) | 38 (35%) | 26–44% | 22 (79%) | 61–90% |
+| skip5 | 34 (31%) | 23–40% | 23 (82%) | 64–92% |
+| shadow (ground from 0.2× to 2.5× the patch brightness) | 18 (16%) | 11–24% | 11 (39%) | 24–58% |
+| wide (colour tolerance 0.05, up to 0.12) | 35 (32%) | 24–41% | 19 (68%) | 49–82% |
+| gap4 (4 non-ground rows in a row to call an obstacle) | 33 (30%) | 22–39% | 14 (50%) | 33–67% |
+| skip3 + shadow + gap4 | 13 (12%) | 7–19% | 4 (14%) | 6–32% |
+| **skip3 + shadow + wide + gap4** | **9 (8%)** | **4–15%** | **2 (7%)** | **2–23%** |
+
+- **Shadows matter most**, and the changes add up. Allowing darker and brighter ground alone halves the phantom stops. With all four changes, phantom stops fall from 35% to 8% and phantom swerves from 79% to 7%. Neither interval overlaps the default's.
+- **By eye.** We looked at 16 of the frames. Where the default stopped and the new setting didn't, the frames show open paths with tree shadows across them, sunlit gravel and a rover's wheels at the bottom edge. The new setting's remaining phantom stops that we looked at were a night frame with headlight glare and raindrops on the lens, a deep shadow band with grass at the path's edge, a dark wet patch on the path, and a person in a wheelchair close on the right. The last two may well be things a rover should slow for. One frame shows the camera turned 90° (the rover had tipped over), and the new setting read it as clear. The camera layer can't tell that a rover has fallen; the pilot's stuck check has to.
+- **What we can't say yet: how many real obstacles it misses.** The data has no obstacle labels. 14 frames came just before the driver stopped or turned hard while moving. The default called 12 of them blocked and the new setting 5. But of the 6 such frames we looked at, 5 show an open path, so drivers stopped or turned there for other reasons, and these frames say little about missed obstacles.
+- **Clock check: inconclusive.** How much the picture changes in half a second correlates only weakly with wheel speed at any clock offset from -4 to 4 s (r = 0.10 to 0.18, best at -3.5 s), so it neither confirms nor rules out an offset between the video and control clocks. Labelled at the -3.5 s offset instead, the results are about the same: phantom stops 40% (default) against 6% (new setting).
+- **What changed.** `free_space.py` 0.5.0 adds `REAL_ROVER`, the skip3 + shadow + wide + gap4 settings. Since v0.9.0, `--vision` on a real rover uses them (`make_vision`); `--vision-plain` goes back to the old defaults. The simulator keeps the defaults, so simulated results don't move. `--vision` stays marked experimental.
+- **Limits.** 493 frames from 48 rides of Earth Rover Zero-era rovers; the Mini+ camera may differ. The setting was picked as the best of 8 on these same frames, which flatters it a little. A check on other rides and other frame times (`--rides-per-part 3 --offsets 4,9,14`) is queued. The study fits a fresh ground model to each frame, while the guard on a rover blends it over time. Driving on is a lower bound on clear space, so a few "phantoms" may be real obstacles the driver steered past within the corridor. No real rover has been driven with it yet.
+- **Prior art.** We found no published evaluation of an obstacle or free-space check on FrodoBots-2K, nor any use of the drivers' own commands as labels for one. The dataset card lists no obstacle annotations.
 
 ## Limits
 
@@ -105,7 +121,7 @@ What this means:
 - Course rates from 1 Hz GPS are noisy. The turning correlation is weak (r = -0.24), even though the sign test is lopsided (440 to 57). The GPS turn rate is a lower bound.
 - The gyroscope's units are inferred, not documented. Degrees per second is the only reading that fits the GPS, but the size could be off by the GPS smoothing factor.
 - The control and GPS clocks were taken as they are. The results line up across lags (0.8 s + 1.5 s ≈ 2.5 s), which suggests no large offset in the sampled rides.
-- Prior work: the University of Amsterdam report "Automatic Control, Calibration and Recording for the FrodoBots" (Zhang and Visser, 2024) describes the Earth Rover Zero's sensors and their rates (GPS 1 Hz, gyroscope 1 Hz, accelerometer 100 Hz). We could not read its full text, so it may cover some of the same ground. As far as we found, no earlier work has published these numbers measured across the whole dataset, together with the code to reproduce them.
+- Prior work: the University of Amsterdam report "Automatic Control, Calibration and Recording for the FrodoBots" (Zhang and Visser, 2024) describes the Earth Rover Zero's sensors and their rates (GPS 1 Hz, gyroscope 1 Hz, accelerometer 100 Hz) and tests visual SLAM, object detection and depth models on the dataset. We could not read its full text, so it may cover some of the same ground. As far as we found, no earlier work has published these numbers measured across the whole dataset, together with the code to reproduce them.
 
 ## Reproduce it
 
@@ -113,10 +129,11 @@ What this means:
 python frodo_motion.py --out-dir out --rides-per-part 12 --imu-per-part 1 --gyro-max-mb 40
 python sim_study.py --out-dir out-sim --seeds 30
 python gain_study.py --out-dir out-gains --seeds 30
+python frodo_frames.py --out-dir out-frames --parts all --rides-per-part 2 --segments 4 --offsets 2,7,12
 ```
 
-Standard library only. Our `frodo_motion.py` run took 19 minutes and read about 317 MB. `out/summary.json` has every table and `out/rides.jsonl` has one line per ride. `sim_study.py` took about a minute and `gain_study.py` about 6 minutes; both write `report.md`, `summary.json` and `runs.jsonl`. The study numbers above were made with rover_pilot 0.7.0; v0.8.0 leaves the simulator's defaults as they were, so it gives the same numbers.
+`frodo_motion.py`, `sim_study.py` and `gain_study.py` use the standard library only. Our `frodo_motion.py` run took 19 minutes and read about 317 MB. `out/summary.json` has every table and `out/rides.jsonl` has one line per ride. `sim_study.py` took about a minute and `gain_study.py` about 6 minutes; both write `report.md`, `summary.json` and `runs.jsonl`. The study numbers above were made with rover_pilot 0.7.0; later versions leave the simulator's defaults as they were, so they give the same numbers. `frodo_frames.py` needs ffmpeg and Pillow; it writes `report.md`, `summary.json`, `frames.jsonl` (every frame's scan results and label) and a small thumbnail of each frame.
 
 ## Licence and credit
 
-Data: FrodoBots-2K by FrodoBots Lab, CC BY-SA 4.0. The numbers and tables in this file derive from it and are shared under CC BY-SA 4.0. The code (`frodo_motion.py`, `sim_study.py`, `gain_study.py` and their tests) is Apache-2.0, like the rest of this repository. Not affiliated with FrodoBots, BitRobot or the Earth Rover Challenge organisers.
+Data: FrodoBots-2K by FrodoBots Lab, CC BY-SA 4.0. The numbers and tables in this file derive from it and are shared under CC BY-SA 4.0. The code (`frodo_motion.py`, `sim_study.py`, `gain_study.py`, `frodo_frames.py` and their tests) is Apache-2.0, like the rest of this repository. Not affiliated with FrodoBots, BitRobot or the Earth Rover Challenge organisers.

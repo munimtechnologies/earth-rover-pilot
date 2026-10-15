@@ -6,7 +6,7 @@ The [Earth Rover Challenge](https://earth-rover-challenge.github.io/) uses this 
 
 Made by **MV2 of Munim, Inc.** The code was written with AI agents.
 
-**Status (v0.8.1):** the pilot has been tested only against the built-in simulator and synthetic maps. It has not driven a real rover yet. What real rovers do with its commands has been measured on 279 recorded rides from the public FrodoBots-2K dataset ([FINDINGS-frodobots-2k.md](FINDINGS-frodobots-2k.md)), the simulator can move like them (`--sim-real`), and the steering for a real rover was chosen by a simulation study on that motion (`gain_study.py`). The camera layer has now seen real recorded frames, and it isn't ready: it saw obstacles on most clear paths (see "Front camera" below). Treat the defaults as a starting point and tune them on the first real runs, starting with `--calibrate`. v0.8.1 stops the rover when its telemetry stops coming in (see "Lost telemetry" below).
+**Status (v0.9.0):** the pilot has been tested only against the built-in simulator, synthetic maps and recorded data. It has not driven a real rover yet. What real rovers do with its commands has been measured on 279 recorded rides from the public FrodoBots-2K dataset ([FINDINGS-frodobots-2k.md](FINDINGS-frodobots-2k.md)), the simulator can move like them (`--sim-real`), and the steering for a real rover was chosen by a simulation study on that motion (`gain_study.py`). v0.9.0 reads a real rover's camera with the settings that saw the fewest phantom obstacles on 493 recorded front-camera frames: about 1 in 12 clear paths instead of 1 in 3 (see "Front camera" below). It is still experimental. Treat the defaults as a starting point and tune them on the first real runs, starting with `--calibrate`. Since v0.8.1 the rover is stopped when its telemetry stops coming in (see "Lost telemetry" below).
 
 ## What the recorded rides say
 
@@ -17,6 +17,8 @@ Made by **MV2 of Munim, Inc.** The code was written with AI agents.
 - at full `linear` the rover covers about **0.8 m/s**
 - the wheels respond about **0.8 s** after a command, and GPS shows the motion about **1.5 s** after the wheels, so a turn reaches the GPS course about **2.5 s** after it is commanded
 - the effective wheel radius is **0.064 m** (0.0067 m/s per RPM)
+
+`frodo_frames.py` reads front-camera frames from 48 rides and labels each one with what the driver did next: on frames after which the driver went at least 2 m straight, the camera layer's default settings saw a wall within 1.2 m 35% of the time. Shadows did most of it.
 
 So since v0.6.0, a real rover without `--calibration` is driven with a positive `angular` turning left. Earlier versions assumed right, which would make every correction turn the rover further away. Details, limits and credits are in [FINDINGS-frodobots-2k.md](FINDINGS-frodobots-2k.md). The numbers there derive from FrodoBots-2K (FrodoBots Lab, CC BY-SA 4.0) and are shared under the same licence.
 
@@ -32,7 +34,7 @@ The SDK ships a simple waypoint example. On a real rover, a bearing-follower lik
 | The compass is offset by the motors, the mount and local magnetic fields. | `HeadingEstimator` learns the bias as the rover drives. On straight stretches it fits a line through the GPS fixes and compares that course with the mean compass reading, then corrects the offset gradually. If the compass drops out, it falls back to the last GPS course. |
 | A checkpoint a few hundred metres away is behind buildings, fences or water. | With `--osm` or `--fetch-osm`, each leg is planned on OpenStreetMap footways, paths and sidewalks (`route_planner.py`), and `PathFollower` steers along it (pure pursuit, 8 m lookahead). If the rover strays more than 30 m it replans. |
 | A marathon has dozens of legs; finding a leg with no walkable route halfway through costs the run. | `--check-route` plans every remaining leg from where the rover stands, without driving, and reports each leg's straight-line and routed length (see below). |
-| A bin, a planter or a parked scooter sits on the line the rover is driving. | With `--vision`, `free_space.py` reads the front camera 5 times a second, works out how far the rover could drive in each direction, and bends the heading to the nearest clear one. Experimental: on recorded frames it sees phantom obstacles (see below). |
+| A bin, a planter or a parked scooter sits on the line the rover is driving. | With `--vision`, `free_space.py` reads the front camera 5 times a second, works out how far the rover could drive in each direction, and bends the heading to the nearest clear one. Experimental: on recorded frames it still sees a phantom obstacle on about 1 in 12 clear paths, and how many real ones it misses isn't measured (see below). |
 | GPS noise is about the size of a 2 m arrival radius, so the rover never "arrives". | Checkpoints are reported from 10 m, inside the server's 15 m tolerance. A refused report is retried every 2 s. Inside 3 m the rover holds still instead of circling. |
 | The SDK confirms the last checkpoint only after a confirmed stop, and may hold that request for up to 12 s. | Before the final report the pilot sends stop commands for 1.5 s. It waits up to 20 s for the answer. If none arrives, it reads `/checkpoints-list` to see whether the report counted before trying again. |
 | Commands arrive late, GPS shows a turn about 2.5 s after it is commanded, and a real rover turns at only about 30°/s per unit of `angular`. | The pilot steers on the compass, not the GPS course, and learns the compass bias only on straight stretches. The gain stays low (full turn rate needs a 60° error). On a real rover `angular` may reach 1.0 and it turns in place only above 90°, the setting that did best in the gain study (see below). `--gps-lag` can also move each late fix forward, but in simulation it didn't clearly help, so it is off by default. |
@@ -88,7 +90,8 @@ Options:
 - `--osm area.json`: plan each leg on a saved map area (see below).
 - `--fetch-osm`: fetch the map around each leg from Overpass as needed.
 - `--check-route`, `--route-out legs.geojson`: plan every remaining leg and report it, without driving (see below).
-- `--vision`: steer around obstacles seen by the front camera. Experimental; not recommended on a real rover yet.
+- `--vision`: steer around obstacles seen by the front camera. Experimental. On a real rover it uses `free_space.REAL_ROVER` (see "Front camera" below); in the simulator, the `VisionGuard` defaults.
+- `--vision-plain`: with `--vision` on a real rover, use the `VisionGuard` defaults instead. They see far more phantom obstacles; this is for comparison.
 - `--camera-fov 90`, `--camera-height 0.35`, `--camera-pitch 5`: the front camera's horizontal field of view (degrees), height above the ground (metres) and downward tilt (degrees). These are guesses; measure them on the rover.
 - `--simulate`, `--seed 1`, `--sim-real`, `--sim-quirks`, `--obstacles`: simulator options.
 - `--timeout 3600`
@@ -176,13 +179,19 @@ python rover_pilot.py --simulate --sim-quirks --calibrate --calibration-out quir
 python rover_pilot.py --simulate --sim-quirks --calibration quirky.json
 ```
 
-## Measure the rovers from FrodoBots-2K (`frodo_motion.py`)
+## Measure the rovers from FrodoBots-2K (`frodo_motion.py`, `frodo_frames.py`)
 
 ```
 python frodo_motion.py --out-dir out --rides-per-part 12
 ```
 
 It reads the dataset's index, then each of the 24 zip parts (2 to 95 GB each) through HTTP range requests: first the zip's central directory, then only the control, GPS and IMU CSVs of 12 rides spread through the part (an IMU file above `--gyro-max-mb`, 40 by default, is skipped). It refuses to go on if the server ignores range requests, so it never downloads a whole part. Our run read about 317 MB in 19 minutes. `out/report.md` sums up the findings, `out/summary.json` has every table and `out/rides.jsonl` has one line per ride. Standard library only.
+
+```
+python frodo_frames.py --out-dir out-frames --parts all --rides-per-part 2 --segments 4 --offsets 2,7,12
+```
+
+It reads a few front-camera video segments and the control log of 2 rides per part, takes frames at the given seconds into each segment (with ffmpeg), runs 8 settings of the camera scan on each, and labels each frame with how far the driver went straight on afterwards. Our run read 708 MB in 23 minutes. It writes `report.md`, `summary.json`, `frames.jsonl` and a thumbnail of each frame. Needs ffmpeg and Pillow.
 
 ## Check a mission before driving it
 
@@ -210,9 +219,11 @@ Each frame from `GET /v2/front` is shrunk to 64 × 36 pixels.
 
 If no frame arrives for a second, the pilot drives on at half speed. Camera errors never stop the pilot.
 
-**On real frames it isn't ready.** On 11 front-camera frames from recorded FrodoBots-2K rides, it saw less than 5 m clear on 10 of them, though by our own look at the frames 9 or 10 showed an open path. Tree shadows, an over-exposed plaza and, on one ride, the rover's own body at the bottom of the frame all read as obstacles. Since v0.8.0, `free_space.py` 0.4.0 can leave out the bottom rows (`skip_rows`, in `VisionGuard` too), and a larger measurement on recorded rides is running, with what the human driver did next as the label. Until a setting clearly does better there, don't use `--vision` on a real rover. Details are in [FINDINGS-frodobots-2k.md](FINDINGS-frodobots-2k.md).
+**Measured on real frames.** `frodo_frames.py` ran 8 settings of the scan on 493 front-camera frames from 48 recorded FrodoBots-2K rides. Each frame is labelled with what the human driver did next. With the defaults, on frames after which the driver went at least 2 m straight, the scan saw less than 1.2 m clear (so the guard would turn in place) 35% of the time. After a 5.5 m straight run, it saw less than 5 m clear (so the guard would swerve or slow) 79% of the time. Tree shadows, glare and the rover's own body at the bottom of the frame caused most of these. `free_space.REAL_ROVER` leaves out the 3 bottom rows, accepts ground from 0.2 to 2.5 times the patch brightness, allows a wider colour spread, and needs 4 non-ground rows in a row before it calls something an obstacle. That brought the phantom stops to 8% (95% CI 4–15%) and the phantom swerves to 7% (2–23%). So since v0.9.0, `--vision` on a real rover uses `REAL_ROVER`. The simulator keeps the defaults, and `--vision-plain` brings them back on a real rover.
 
-What it can't do in any case: it sees colour, not depth. An obstacle the same colour as the ground (a grey wall on grey pavement) is missed. It has no memory, so something it has driven past and can no longer see doesn't count. It is a cheap first layer. A learned free-space model trained on the FrodoBots datasets could replace it later behind the same `advise()` call.
+Still experimental, for three reasons. The recorded data has no obstacle labels, so how many real obstacles the new setting misses is not known. The setting was chosen as the best of 8 on the same frames, and a check on other rides is queued. And the frames come from Earth Rover Zero-era rovers, not the Mini+. Details are in [FINDINGS-frodobots-2k.md](FINDINGS-frodobots-2k.md).
+
+What it can't do in any case: it sees colour, not depth. An obstacle the same colour as the ground (a grey wall on grey pavement) is missed. It has no memory, so something it has driven past and can no longer see doesn't count. It can't tell that the rover has tipped over: one recorded frame, turned 90°, read as clear. It is a cheap first layer. A learned free-space model trained on the FrodoBots datasets could replace it later behind the same `advise()` call.
 
 ## Route planning
 
@@ -243,12 +254,12 @@ Map data © [OpenStreetMap contributors](https://www.openstreetmap.org/copyright
 - The shape of the `/missions` answer: the pilot accepts a list, or a list under `missions`, `items` or `data`.
 - The steering (`angular` up to 1.0, turn in place above 90°) comes from a simulation of the recorded motion. Watch the first legs; `--max-angular` and `--turn-in-place` change it.
 - The `/data` `timestamp` changes with each telemetry report from the rover. If the log shows `telemetry-stale` while the rover's telemetry is plainly fine, it doesn't; use `--telemetry-timeout 0` and rely on the SDK watchdog.
-- The front camera's field of view, height and tilt (`--camera-*`), if `--vision` is tried at all. A wrong tilt makes obstacles look nearer or farther than they are.
+- The front camera's field of view, height and tilt (`--camera-*`), if `--vision` is tried. A wrong tilt makes obstacles look nearer or farther than they are. Watch `clear_m` in the log on the first runs.
 - OSM sidewalks are mapped well enough in the mission's area. Where they aren't, roads stand in for them.
 
 ## Not done yet
 
-- The camera layer sees phantom obstacles on real frames. The measurement on recorded rides decides which of its settings, if any, becomes the default; a learned model may be needed instead.
+- The camera layer's miss rate on real obstacles is unknown, and the chosen setting still has to be checked on other recorded rides and on a Mini+. A learned model may be needed in the end.
 - Indoor and off-road tracks use image goals, not GPS. This pilot covers only GPS checkpoint missions.
 - The steering for a real rover comes from simulation. It still has to be checked on a real rover.
 - Wheel RPMs or the gyroscope could carry the position and heading between GPS fixes. Not tried yet.
@@ -256,7 +267,7 @@ Map data © [OpenStreetMap contributors](https://www.openstreetmap.org/copyright
 ## Tests
 
 ```
-python -m unittest test_rover_pilot test_rover_defaults test_steering_defaults test_telemetry test_calibrate test_calibrate_real test_route_planner test_free_space test_free_space_skip test_frodo_motion test_gps_lag test_gain_study -v
+python -m unittest test_rover_pilot test_rover_defaults test_steering_defaults test_telemetry test_calibrate test_calibrate_real test_route_planner test_free_space test_free_space_skip test_vision_settings test_frodo_motion test_frodo_frames test_gps_lag test_gain_study -v
 ```
 
 The tests cover:
@@ -276,9 +287,11 @@ The tests cover:
 - the route check: each remaining leg measured from the rover's position, legs with no route, a planner error on one leg, no GPS fix, the GeoJSON output, and the command line on a synthetic map with nothing driven
 - the camera model, ground-colour matching, corridors, and the guard's choices: leave the heading alone, steer to the nearer side, stop and turn at a wall, slow down with no frames, learn a new surface
 - `skip_rows`: the defaults unchanged; the rover's body in the bottom rows read as an obstacle by default, and open ground seen once those rows are left out, in the scan and in the guard
+- the real-rover camera settings: `REAL_ROVER` being the setting the frame study measured; a hard shadow band 1 m ahead stopping the default guard but read as ground with `REAL_ROVER`; a hedge still seen with `REAL_ROVER`; and the command line using `REAL_ROVER` on a real rover, the defaults in the simulator and with `--vision-plain`
 - closed loop in the simulator: with a 2 m hedge on the straight line to the checkpoint, the rover without vision drives into it, and with vision it goes around without touching it (two seeds)
 - the route planner on synthetic maps: detours, footways versus busy roads, sidewalks, disconnected networks, ways cut at the edge of the fetched area, and the command line
 - `frodo_motion.py`: reading zips through range requests (including zip64 and CRC checks), IMU parsing, and the analysis on a simulated rover with a known turn direction, speed, GPS delay and gyroscope axis
+- `frodo_frames.py`: segment times in UTC, wheel speed, the distance driven straight after a frame and what ends it, event frames, the Wilson interval, each scan setting on open ground and with a hedge ahead, and the summary
 - late GPS: the compensator's offsets (straight, stopped and reversing, stale fixes, unknown heading), the simulator's GPS delay keeping its random sequence, zero lag being exactly the plain pilot, the corrected position running ahead of the fix, and `--sim-real --gps-lag 1.5` flying the demo
 - `gain_study.py`: the grid, the baseline being the simulator's steering, the real-like profiles, the sign test, picking the best setting, flying the demo, and the command line's outputs
 

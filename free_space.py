@@ -13,13 +13,15 @@ when nothing ahead is clear.
 
 It sees colour, not depth. An obstacle the same colour as the ground (a grey
 wall on grey pavement) is missed, and a change of surface (grass beside the
-path, a painted line, a hard shadow edge) can read as an obstacle. On recorded
-FrodoBots-2K front-camera frames (FINDINGS-frodobots-2k.md) the default
-settings saw an obstacle within 5 m on 10 of 11 frames, most of them clear
-paths: tree shadows, an over-exposed patch and the rover's own body at the
-bottom of the frame all read as obstacles. `skip_rows` leaves out the bottom
-rows where the rover's body shows; the other settings are being measured.
-It is a cheap first layer, meant to be replaced or backed by a learned model.
+path, a painted line, a hard shadow edge) can read as an obstacle. On 493
+recorded FrodoBots-2K front-camera frames (frodo_frames.py 0.2.0,
+FINDINGS-frodobots-2k.md) the default settings saw an obstacle within 1.2 m
+on 36% of the frames after which the human driver went on at least 2 m
+straight: tree shadows, glare and the rover's own body at the bottom of the
+frame. REAL_ROVER (leave out the body rows, accept deeper shadows and a wider
+colour spread, and need four non-ground rows in a row) brought that to 8%.
+How many real obstacles either setting misses is not measured. It is a cheap
+first layer, meant to be replaced or backed by a learned model.
 
 Standard library only. Decoding the SDK's JPEG frames needs Pillow
 (decode_frame); the rest, including the simulator renderer, does not.
@@ -32,11 +34,23 @@ import io
 import math
 import random
 
-__version__ = "0.4.0"
+__version__ = "0.5.0"
 
 GROUND_GREY = (128, 128, 128)
 HEDGE_GREEN = (60, 120, 50)
 SKY_BLUE = (170, 200, 235)
+
+# VisionGuard settings for a real Earth Rover's front camera. Of the eight
+# settings frodo_frames.py ran on 493 FrodoBots-2K frames, this one saw the
+# fewest phantom obstacles: a "stop" (under 1.2 m clear) on 9 of 110 frames
+# after which the driver went at least 2 m straight (8%, 95% CI 4-15%; the
+# defaults 36%, 27-45%) and a "swerve" (under 5 m) on 2 of 28 frames after
+# which the driver went 5.5 m straight (7%, 2-23%; the defaults 79%, 61-90%).
+# skip_rows leaves out the rover's body; lum_lo/lum_hi accept ground from 0.2
+# to 2.5 times the patch brightness (shadows, glare); chroma_tol/max_tol allow
+# a wider colour spread; gap needs four non-ground rows to call an obstacle.
+REAL_ROVER = {"skip_rows": 3, "gap": 4,
+              "scan_kw": {"lum_lo": 0.2, "lum_hi": 2.5, "chroma_tol": 0.05, "max_tol": 0.12}}
 
 
 class Frame:
@@ -225,7 +239,8 @@ class VisionGuard:
     available. It is called at most every `period_s`; a scan older than
     `stale_s` is not trusted, and the pilot is slowed to `blind_scale` instead.
     `skip_rows`, `gap` and `scan_kw` (colour tolerances for GroundModel.matcher)
-    are passed to the ground patch and the scan.
+    are passed to the ground patch and the scan; REAL_ROVER holds the ones
+    measured for a real rover's camera.
     """
 
     def __init__(self, source, camera=None, period_s=0.2, stale_s=1.0, half_width_m=0.4,

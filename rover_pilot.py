@@ -18,6 +18,9 @@ What it adds over a plain bearing-follower:
   every remaining leg can be planned and checked before driving (--check-route).
 - Optionally, the front camera (free_space.py) bends the heading around
   obstacles in the way and slows or stops the rover when nothing is clear.
+  A real rover's camera is read with free_space.REAL_ROVER, the settings that
+  saw the fewest phantom obstacles on recorded FrodoBots-2K front frames
+  (frodo_frames.py); the simulator keeps the VisionGuard defaults.
 - Which way orientation and angular run can be measured on the rover first
   (calibrate.py, --calibrate) and applied to the mission (--calibration).
   Without a calibration, a real rover is driven with a positive angular
@@ -54,7 +57,7 @@ import time
 import urllib.error
 import urllib.request
 
-__version__ = "0.8.1"
+__version__ = "0.9.0"
 
 EARTH_RADIUS_M = 6371000.0
 M_PER_DEG = EARTH_RADIUS_M * math.pi / 180.0
@@ -487,6 +490,14 @@ def make_steering(simulate, cruise=0.6, max_angular=None, turn_in_place_deg=None
     if turn_in_place_deg is not None:
         kw["turn_in_place_deg"] = turn_in_place_deg
     return Steering(cruise=cruise, **kw)
+
+
+def make_vision(source, camera, simulate, plain=False):
+    """The free_space.VisionGuard the command line drives with: free_space.REAL_ROVER
+    on a real rover, the class defaults in the simulator or with `plain`."""
+    import free_space
+    kw = {} if simulate or plain else dict(free_space.REAL_ROVER)
+    return free_space.VisionGuard(source, camera=camera, **kw)
 
 
 class PathFollower:
@@ -1229,9 +1240,13 @@ def main(argv=None):
                                          "rover is driven with a positive angular turning left)")
     p.add_argument("--vision", action="store_true",
                    help="steer around obstacles seen by the front camera (a real rover needs "
-                        "Pillow: pip install pillow). Experimental: on recorded FrodoBots-2K "
-                        "frames it saw obstacles on most clear paths, so a real rover may "
-                        "slow and swerve for nothing")
+                        "Pillow: pip install pillow). Experimental: a real rover's camera is "
+                        "read with free_space.REAL_ROVER, which on recorded FrodoBots-2K "
+                        "frames still saw a phantom obstacle on about 1 in 12 clear paths, "
+                        "and how many real obstacles it misses is not measured yet")
+    p.add_argument("--vision-plain", action="store_true",
+                   help="with --vision on a real rover, use the VisionGuard defaults instead "
+                        "of free_space.REAL_ROVER (they see far more phantom obstacles)")
     p.add_argument("--camera-fov", type=float, default=90.0,
                    help="front camera horizontal field of view, degrees")
     p.add_argument("--camera-height", type=float, default=0.35,
@@ -1322,7 +1337,8 @@ def main(argv=None):
                 with open(args.calibration_out, "w", encoding="utf-8") as f:
                     json.dump(result, f, indent=2)
         else:
-            vision = free_space.VisionGuard(source, camera=camera) if camera else None
+            vision = (make_vision(source, camera, args.simulate, args.vision_plain)
+                      if camera else None)
             pilot = Pilot(rover, clock=clock, sleep=sleep, steering=steering,
                           report_radius_m=args.report_radius, planner=planner, vision=vision,
                           conventions=conventions, gps_lag_s=args.gps_lag,
