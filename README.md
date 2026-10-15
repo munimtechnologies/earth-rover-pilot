@@ -6,7 +6,7 @@ The [Earth Rover Challenge](https://earth-rover-challenge.github.io/) uses this 
 
 Made by **MV2 of Munim, Inc.** The code was written with AI agents.
 
-**Status (v0.9.1):** the pilot has been tested only against the built-in simulator, synthetic maps and recorded data. It has not driven a real rover yet. What real rovers do with its commands has been measured on 279 recorded rides from the public FrodoBots-2K dataset ([FINDINGS-frodobots-2k.md](FINDINGS-frodobots-2k.md)), the simulator can move like them (`--sim-real`), and the steering for a real rover was chosen by a simulation study on that motion (`gain_study.py`). v0.9.0 reads a real rover's camera with the settings that saw the fewest phantom obstacles on 493 recorded front-camera frames: about 1 in 12 clear paths instead of 1 in 3 (see "Front camera" below). It is still experimental. v0.9.1 adds `gps_noise_study.py`: the pilot completed all 9,450 simulated missions under GPS error that drifts as a real receiver's does, up to 6 m (see "Drifting GPS" below). Treat the defaults as a starting point and tune them on the first real runs, starting with `--calibrate`. Since v0.8.1 the rover is stopped when its telemetry stops coming in (see "Lost telemetry" below).
+**Status (v0.9.2):** the pilot has been tested only against the built-in simulator, synthetic maps and recorded data. It has not driven a real rover yet. What real rovers do with its commands has been measured on 279 recorded rides from the public FrodoBots-2K dataset ([FINDINGS-frodobots-2k.md](FINDINGS-frodobots-2k.md)), the simulator can move like them (`--sim-real`), and the steering for a real rover was chosen by a simulation study on that motion (`gain_study.py`). v0.9.0 reads a real rover's camera with the settings that saw the fewest phantom obstacles on 493 recorded front-camera frames: about 1 in 12 clear paths instead of 1 in 3 (see "Front camera" below). It is still experimental. v0.9.1 adds `gps_noise_study.py`: the pilot completed all 9,450 simulated missions under GPS error that drifts as a real receiver's does, up to 6 m (see "Drifting GPS" below). v0.9.2 stops a rover that has tipped over, read from its accelerometer (see "Tipped rover" below), and lets the compass-bias fit leave out or down-weight stretches bent by drifting GPS (off by default until the queued study says). Treat the defaults as a starting point and tune them on the first real runs, starting with `--calibrate`. Since v0.8.1 the rover is stopped when its telemetry stops coming in (see "Lost telemetry" below).
 
 ## What the recorded rides say
 
@@ -31,7 +31,8 @@ The SDK ships a simple waypoint example. On a real rover, a bearing-follower lik
 | The SDK doesn't say which way a positive `angular` turns, or what `orientation` reads (its example shows `128`). Guess wrong and every correction turns the rover further away. | Without a calibration, a real rover is driven with a positive `angular` turning left, as the recorded rides show. `--calibrate` spins the rover, drives two short straights with a turn between them and measures both (see below). `--calibration` applies the result. |
 | With no fix, the rover reports latitude/longitude `1000`. Bad parsing turns missing values into 0/0. | `GpsFilter` drops no-fix, 0/0, NaN and impossible jumps. It smooths the remaining fixes and stops the rover if no fix has arrived for 3 s. |
 | The SDK caches the last telemetry it got, so when the rover's link drops, `/data` keeps showing the same GPS fix and the rover would be steered blind. | `TelemetryWatch` stops the rover once no new telemetry has come in for 5 s, and lets it drive on when telemetry is back (see "Lost telemetry" below). |
-| The compass is offset by the motors, the mount and local magnetic fields. | `HeadingEstimator` learns the bias as the rover drives. On straight stretches it fits a line through the GPS fixes and compares that course with the mean compass reading, then corrects the offset gradually. If the compass drops out, it falls back to the last GPS course. |
+| A rover on its side still has a GPS fix and a compass, and its camera, turned 90°, may read as clear ground; a pilot would keep driving its wheels in the air. | `TipWatch` learns which way gravity points in the accelerometer at the start of the mission and stops the rover once it has pointed more than 50° away for a second, until it is upright again (see "Tipped rover" below). |
+| The compass is offset by the motors, the mount and local magnetic fields. | `HeadingEstimator` learns the bias as the rover drives. On straight stretches it fits a line through the GPS fixes and compares that course with the mean compass reading, then corrects the offset gradually. It measures how straight the fixes lie, and can leave out or down-weight stretches bent by drifting GPS (off by default). If the compass drops out, it falls back to the last GPS course. |
 | A checkpoint a few hundred metres away is behind buildings, fences or water. | With `--osm` or `--fetch-osm`, each leg is planned on OpenStreetMap footways, paths and sidewalks (`route_planner.py`), and `PathFollower` steers along it (pure pursuit, 8 m lookahead). If the rover strays more than 30 m it replans. |
 | A marathon has dozens of legs; finding a leg with no walkable route halfway through costs the run. | `--check-route` plans every remaining leg from where the rover stands, without driving, and reports each leg's straight-line and routed length (see below). |
 | A bin, a planter or a parked scooter sits on the line the rover is driving. | With `--vision`, `free_space.py` reads the front camera 5 times a second, works out how far the rover could drive in each direction, and bends the heading to the nearest clear one. Experimental: on recorded frames it still sees a phantom obstacle on about 1 in 12 clear paths, and how many real ones it misses isn't measured (see below). |
@@ -87,6 +88,7 @@ Options:
 - `--report-radius 10`: report a checkpoint once the rover is this many metres from it (the server's tolerance is about 15). In simulation 12 was 4–7% faster, but with noisy GPS more of its credits came with the rover truly beyond 15 m; see "Drifting GPS" below.
 - `--gps-lag 0`: seconds the GPS runs behind the rover. Above 0, each fix is moved forward by the driving commanded since it was taken, assuming 0.79 m/s at full `linear` and commands 0.8 s late. Off by default; see "Late GPS" below.
 - `--telemetry-timeout 5`: stop the rover while no new telemetry has come in for this many seconds; 0 turns it off. See "Lost telemetry" below.
+- `--tip-angle 50`: stop the rover while its accelerometer shows gravity more than this many degrees from where it pointed when the mission began; 0 turns it off. See "Tipped rover" below.
 - `--osm area.json`: plan each leg on a saved map area (see below).
 - `--fetch-osm`: fetch the map around each leg from Overpass as needed.
 - `--check-route`, `--route-out legs.geojson`: plan every remaining leg and report it, without driving (see below).
@@ -97,7 +99,7 @@ Options:
 - `--timeout 3600`
 - `--no-start`: resume a mission that has already started.
 
-Ctrl-C sends a stop. The log (`--log`) records one JSON line per second, plus each checkpoint, refusal, plan and recovery, and each time telemetry is lost (`telemetry-stale`) or back (`telemetry-back`), so a run can be checked afterwards. With `--vision`, each line also has `clear_m`, how far ahead the camera saw clear ground.
+Ctrl-C sends a stop. The log (`--log`) records one JSON line per second, plus each checkpoint, refusal, plan and recovery, each time telemetry is lost (`telemetry-stale`) or back (`telemetry-back`), and each time the rover tips over (`tipped`) or is upright again (`upright`), so a run can be checked afterwards. With `--vision`, each line also has `clear_m`, how far ahead the camera saw clear ground.
 
 ### Leg summaries
 
@@ -108,7 +110,7 @@ The result printed at the end has a `legs` list, and the log has one `checkpoint
 - `reports`: how many `/checkpoint-reached` calls it took (1 means the first one counted)
 - `recoveries`: how many back-up-and-turn moves the leg needed
 
-On a long mission these show which legs were slow or hard, so the next run can be tuned for them. The result also has `telemetry_stops`, how many times the rover was stopped for lost telemetry.
+On a long mission these show which legs were slow or hard, so the next run can be tuned for them. The result also has `telemetry_stops`, how many times the rover was stopped for lost telemetry, and `tip_stops`, how many times it was stopped for having tipped over.
 
 ## Lost telemetry (`--telemetry-timeout`)
 
@@ -117,6 +119,16 @@ The SDK caches the telemetry the rover pushes to it, and `/data` serves the late
 Now the pilot counts a reading as new only when its `/data` `timestamp` changes. It also asks `GET /status` once a second for the SDK's `telemetry_age_s` (seconds since the last telemetry message), where the SDK has it. When either shows no new telemetry for more than 5 s, the pilot sends stop commands and logs `telemetry-stale`. When readings come in again, it logs `telemetry-back` and drives on. An Earth Rover Mini+ reports every 2 s (SDK README), so one late or lost report doesn't stop it, and two in a row do.
 
 Limits: the SDK README doesn't define the `/data` `timestamp`. If it turns out to change on every request rather than with each rover report, only `/status` catches a stall. An SDK without `/status` and without a usable timestamp gives the pilot nothing to go on, and it drives as before (`test_telemetry.py` checks that case too). If a real rover is stopped for this when its telemetry is fine, the log shows `telemetry-stale` lines; `--telemetry-timeout 0` turns the check off. In the simulator the timestamp changes on every reading, so simulated missions fly exactly as before.
+
+## Tipped rover (`--tip-angle`)
+
+A sidewalk rover that has gone over a kerb edge or been knocked onto its side still reports a GPS fix and a compass heading, and its front camera, now turned 90°, can read as clear ground (one recorded FrodoBots-2K frame did). Nothing in the GPS loop would notice, and the pilot would keep driving its wheels in the air, or drag the rover along the pavement.
+
+The SDK's `/data` carries the rover's accelerometer (`accels`, rows of `[x, y, z, timestamp]`; the README's example reads about 1 on one axis while the rover stands, so the unit is g; on a Mini+ there are 100 rows per 2 s report). The README doesn't say which axis points up, and the Mini+ may mount its IMU differently from the rovers the dataset was recorded on. So since v0.9.2 the pilot doesn't assume an axis: `TipWatch` averages the rows of each reading and, over the first 3 s of the mission, learns the direction gravity has while the rover is upright. From then on it measures the angle between gravity now and that direction. Once the angle has been above 50° for a second, the pilot sends stop commands and logs `tipped` with the angle; as soon as the angle is back under, it logs `upright` and drives on. The result has `tip_stops`.
+
+Readings whose size is far from 1 g (below 0.5 or above 1.5: a knock, a drop, a rover in the air) are ignored rather than read as a tilt, and readings above 5 are taken as m/s² and scaled. A ramp or a kerb tilts a rover by 10 to 20°, well under the threshold; `--tip-angle` changes it and 0 turns the check off. A rover that reports no `accels` (the simulator) is never stopped for this, so simulated missions fly exactly as before (`test_tip_and_bias.py` checks that, and a simulated rover with an accelerometer being stopped within 1.5 s of tipping and driving on once righted).
+
+Limits: the upright direction is learned at the start, so a rover that begins the mission already on its side, or on a steep slope, learns the wrong one. The pilot only stops; righting the rover needs a person.
 
 ## Steering for a real rover (`gain_study.py`)
 
@@ -153,6 +165,8 @@ python gps_noise_study.py --out-dir out --seeds 30
 - The server judges the reported GPS, so with 6 m of drift, 15–24% of the credited checkpoints were credited with the rover truly more than 15 m from them. That holds for any driver, human or AI.
 - The GPS smoothing stays: without it the pilot was slower with 14 of 21 rover × error combinations. Heavier smoothing was mixed.
 - Reporting from 12 m was faster everywhere (4–7%), but with noisy GPS more of its credits came with the rover truly beyond 15 m, and on the 1 s rover with 3 m jitter it added refused reports. The default stays 10 m until a real rover shows how its server answers; `--report-radius 12` is there to try.
+
+Since the fast-drifting error does its damage through the compass-bias fit, v0.9.2 gives that fit two options. Each straight-stretch fit now records its length, number of fixes and residual (the RMS distance of the fixes from the fitted line, across it) in `HeadingEstimator.last_fit`. With `max_residual_m` set, a stretch whose fixes don't lie on a line is left out of the bias (counted in `rejected_fits`); with `weigh`, the bias is the weighted circular mean of every measurement, each weighted by (length / residual)², instead of a running update with gain 0.3. Both are off by default, because they haven't been measured yet: `gps_noise_study.py` 0.2.0 adds seven variants of them (residual gate at 2 or 3 m, stretches of 20 or 30 m, weighting, and combinations), and that run is queued. The defaults change only if it shows a gain without a loss.
 
 Which error model is the real one isn't known yet: `frodo_gps.py`, which measures the recorded rovers' GPS error against their wheel sensors, is queued. The full table is in [FINDINGS-frodobots-2k.md](FINDINGS-frodobots-2k.md). This is a simulation result; a real rover may differ.
 
@@ -239,7 +253,7 @@ If no frame arrives for a second, the pilot drives on at half speed. Camera erro
 
 Still experimental, for three reasons. The recorded data has no obstacle labels, so how many real obstacles the new setting misses is not known. The setting was chosen as the best of 8 on the same frames, and a check on other rides is queued. And the frames come from Earth Rover Zero-era rovers, not the Mini+. Details are in [FINDINGS-frodobots-2k.md](FINDINGS-frodobots-2k.md).
 
-What it can't do in any case: it sees colour, not depth. An obstacle the same colour as the ground (a grey wall on grey pavement) is missed. It has no memory, so something it has driven past and can no longer see doesn't count. It can't tell that the rover has tipped over: one recorded frame, turned 90°, read as clear. It is a cheap first layer. A learned free-space model trained on the FrodoBots datasets could replace it later behind the same `advise()` call.
+What it can't do in any case: it sees colour, not depth. An obstacle the same colour as the ground (a grey wall on grey pavement) is missed. It has no memory, so something it has driven past and can no longer see doesn't count. It can't tell that the rover has tipped over: one recorded frame, turned 90°, read as clear; since v0.9.2 the accelerometer does that (see "Tipped rover" above). It is a cheap first layer. A learned free-space model trained on the FrodoBots datasets could replace it later behind the same `advise()` call.
 
 ## Route planning
 
@@ -270,6 +284,7 @@ Map data © [OpenStreetMap contributors](https://www.openstreetmap.org/copyright
 - The shape of the `/missions` answer: the pilot accepts a list, or a list under `missions`, `items` or `data`.
 - The steering (`angular` up to 1.0, turn in place above 90°) comes from a simulation of the recorded motion. Watch the first legs; `--max-angular` and `--turn-in-place` change it.
 - The `/data` `timestamp` changes with each telemetry report from the rover. If the log shows `telemetry-stale` while the rover's telemetry is plainly fine, it doesn't; use `--telemetry-timeout 0` and rely on the SDK watchdog.
+- `/data` `accels` rows are `[x, y, z, ...]` in g (or m/s²), and the rover starts the mission upright. If the log shows `tipped` while the rover is plainly upright, look at the logged angle; `--tip-angle 0` turns the check off.
 - The front camera's field of view, height and tilt (`--camera-*`), if `--vision` is tried. A wrong tilt makes obstacles look nearer or farther than they are. Watch `clear_m` in the log on the first runs.
 - OSM sidewalks are mapped well enough in the mission's area. Where they aren't, roads stand in for them.
 
@@ -279,12 +294,12 @@ Map data © [OpenStreetMap contributors](https://www.openstreetmap.org/copyright
 - Indoor and off-road tracks use image goals, not GPS. This pilot covers only GPS checkpoint missions.
 - The steering for a real rover comes from simulation. It still has to be checked on a real rover.
 - Wheel RPMs or the gyroscope could carry the position and heading between GPS fixes. Not tried yet.
-- How noisy and how fast-drifting a real rover's GPS is: measurement queued. With fast-drifting error the compass bias is learned worst, so a bias fit that uses the wheels or the gyroscope may be the next gain.
+- How noisy and how fast-drifting a real rover's GPS is: measurement queued. With fast-drifting error the compass bias is learned worst; v0.9.2's residual gate and weighting are the first candidates, and their study is queued. A bias fit that uses the wheels or the gyroscope may be the next gain.
 
 ## Tests
 
 ```
-python -m unittest test_rover_pilot test_rover_defaults test_steering_defaults test_telemetry test_calibrate test_calibrate_real test_route_planner test_free_space test_free_space_skip test_vision_settings test_frodo_motion test_frodo_frames test_gps_lag test_gain_study test_gps_noise_study -v
+python -m unittest test_rover_pilot test_rover_defaults test_steering_defaults test_telemetry test_tip_and_bias test_calibrate test_calibrate_real test_route_planner test_free_space test_free_space_skip test_vision_settings test_frodo_motion test_frodo_frames test_gps_lag test_gain_study test_gps_noise_study -v
 ```
 
 The tests cover:
@@ -298,6 +313,8 @@ The tests cover:
 - the real-rover defaults: a positive `angular` turning left, used by the command line on a real SDK without `--calibration`, overridden by a calibration, not used in the simulator, and flying the whole mission on a simulated left-turning rover
 - the real-rover steering: `angular` up to 1.0 and turning in place above 90° on a real SDK, the simulator's own steering kept, `--max-angular` and `--turn-in-place` overriding either, and a real-like left-turning rover at 30°/s flying the demo with it
 - lost telemetry: the timestamp and `/status` checks, `/status` asked at most once a second, the simulator flying exactly as with the check off, a rover whose telemetry freezes 15 s into the demo stopped within about 5 s (by timestamp, or by `/status` alone), the same freeze going unnoticed with neither, a rover that drives on and finishes the mission when telemetry is back, `GET /status` parsing, and `--telemetry-timeout`
+- the tipped rover: reading `accels` rows (in g or m/s², bad rows skipped), learning the upright direction on any axis, a 30° slope not counting, short knocks and readings far from 1 g ignored, no `accels` meaning no opinion, `--tip-angle 0`; a simulated rover with an accelerometer stopped within 1.5 s of tipping 20 s into the demo and finishing the mission once righted, one that stays tipped staying stopped, and the plain simulator flying exactly as before
+- the compass-bias fit: a clean stretch's length, points and residual, the residual gate leaving out a bent stretch (and the plain fit not), weighting all but dropping a scattered, skewed stretch next to a clean one, the weighted bias wrapping across ±180°, and the demo flown with both options on
 - calibration in the simulator: the usual rover, one with every convention reversed, a mirrored compass only, a left-turning `angular` only; the starting bias, turn rate and speed it measures; and failures (no GPS fix, no turn seen, a rover that can't move), each ending with a stop
 - calibration on a rover that moves like the recorded ones (30°/s per unit): a 30 s spin falls short of a whole turn, and the longer spin calibrates it, turning either way
 - the command line: calibrate a quirky simulated rover, save the result and fly the mission with it; a failed calibration is refused
@@ -311,7 +328,7 @@ The tests cover:
 - `frodo_frames.py`: segment times in UTC, wheel speed, the distance driven straight after a frame and what ends it, event frames, the Wilson interval, each scan setting on open ground and with a hedge ahead, and the summary
 - late GPS: the compensator's offsets (straight, stopped and reversing, stale fixes, unknown heading), the simulator's GPS delay keeping its random sequence, zero lag being exactly the plain pilot, the corrected position running ahead of the fix, and `--sim-real --gps-lag 1.5` flying the demo
 - `gain_study.py`: the grid, the baseline being the simulator's steering, the real-like profiles, the sign test, picking the best setting, flying the demo, and the command line's outputs
-- `gps_noise_study.py`: the drifting error keeping its size and correlation, zero correlation being independent noise, zero correlation time being exactly the plain simulator, drifting error moving slowly while the rover stands still, flying the demo with 1 s and 2 s fixes and recording how far the rover truly was at each credit, the summary and verdicts, and the command line's outputs
+- `gps_noise_study.py`: the drifting error keeping its size and correlation, zero correlation being independent noise, zero correlation time being exactly the plain simulator, drifting error moving slowly while the rover stands still, flying the demo with 1 s and 2 s fixes and recording how far the rover truly was at each credit, the bias-fit variants naming real settings and flying drifting GPS, the summary and verdicts, and the command line's outputs
 
 ## License
 

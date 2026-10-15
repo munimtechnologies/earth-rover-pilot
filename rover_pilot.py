@@ -9,7 +9,9 @@ What it adds over a plain bearing-follower:
   implausible jumps are dropped, and the rest are smoothed.
 - The compass bias is learned while driving: on straight stretches a line is
   fitted through the GPS fixes, and its direction (the true course) is compared
-  with the mean compass reading over the same stretch.
+  with the mean compass reading over the same stretch. How well the fixes lie
+  on that line is measured too; a stretch bent by drifting GPS error can be
+  left out (max_residual_m) and straighter stretches trusted more (weigh).
 - Checkpoints are reported from inside a margin of the 15 m tolerance, retried
   when refused, and the last one only after a settled stop. A report that gets
   no answer is checked against the server's checkpoint list before retrying.
@@ -35,6 +37,10 @@ What it adds over a plain bearing-follower:
   dropped still shows a GPS fix. When no new telemetry has come in for 5 s
   (the /data timestamp stays the same, or GET /status says so), the rover is
   stopped until it is back (TelemetryWatch, --telemetry-timeout).
+- A rover that has tipped over is stopped: the direction of gravity in the
+  accelerometer is learned in the first seconds of the mission, and once it
+  has pointed more than 50 degrees away from that for a second the rover is
+  stopped until it is upright again (TipWatch, --tip-angle).
 - Being stuck (driving with no GPS progress) triggers a back-up-and-turn move.
 - Each leg is summed up (time, reports, recoveries) in the result and the log.
 - A built-in simulator (command latency, GPS noise, delay and dropouts, compass
@@ -57,7 +63,7 @@ import time
 import urllib.error
 import urllib.request
 
-__version__ = "0.9.0"
+__version__ = "0.9.2"
 
 EARTH_RADIUS_M = 6371000.0
 M_PER_DEG = EARTH_RADIUS_M * math.pi / 180.0
@@ -69,6 +75,12 @@ REPORT_TIMEOUT_S = 20.0
 # Rover Mini+ reports every 2 s (SDK README), so one late or lost report
 # (a 4 s gap) doesn't stop it, and two in a row do.
 TELEMETRY_TIMEOUT_S = 5.0
+# Stop the rover when its accelerometer says it has tipped over: gravity more
+# than this many degrees from where it pointed when the mission began, for
+# TIP_HOLD_S. A kerb or a ramp tilts a rover by 10 to 20 degrees; on its side
+# it is 90 away. 0 turns the check off.
+TIP_ANGLE_DEG = 50.0
+TIP_HOLD_S = 1.0
 
 # (north_m, east_m) of each checkpoint from the start, for --simulate.
 DEMO_MISSION = [(40.0, 30.0), (85.0, -5.0), (60.0, -60.0), (10.0, -40.0)]
@@ -319,6 +331,99 @@ class TelemetryWatch:
         return self.sdk_age is not None and self.sdk_age > self.timeout_s
 
 
+class TipWatch:
+    """Notices when the rover has tipped over, from its accelerometer.
+
+    /data `accels` holds rows of [x, y, z, timestamp]; in the SDK README's
+    example one axis reads about 1 while the rover stands, so the unit is g.
+    The README doesn't say which axis points up, and neither the GPS nor the
+    camera can tell that a rover is on its side (one recorded frame, turned
+    90 degrees, read as clear ground), so the watch learns the direction
+    gravity has during the first `learn_s` seconds of readings and calls the
+    rover tipped once gravity has pointed more than `angle_deg` away from it
+    for `hold_s`. It is upright again as soon as the angle is back under.
+    Readings whose size is far from 1 g (a knock, a drop, or another unit)
+    are left out; readings above 5 are taken as m/s^2. angle_deg 0 turns it
+    off, and a rover that reports no `accels` (the simulator) is never tipped.
+    """
+
+    def __init__(self, angle_deg=TIP_ANGLE_DEG, hold_s=TIP_HOLD_S, learn_s=3.0,
+                 min_g=0.5, max_g=1.5):
+        self.angle_deg = angle_deg
+        self.hold_s = hold_s
+        self.learn_s = learn_s
+        self.min_g = min_g
+        self.max_g = max_g
+        self.up = None       # unit vector gravity had when it was learned
+        self.angle = None    # degrees between gravity now and `up`
+        self.samples = 0     # readings accepted
+        self.tipped = False
+        self._learn_t0 = None
+        self._sum = [0.0, 0.0, 0.0]
+        self._over_since = None
+
+    @staticmethod
+    def gravity(accels):
+        """The mean (x, y, z) of the rows of a /data `accels` list, in g, or None."""
+        if not isinstance(accels, (list, tuple)):
+            return None
+        sums, n = [0.0, 0.0, 0.0], 0
+        for row in accels:
+            if not isinstance(row, (list, tuple)) or len(row) < 3:
+                continue
+            try:
+                x, y, z = float(row[0]), float(row[1]), float(row[2])
+            except (TypeError, ValueError):
+                continue
+            if not (math.isfinite(x) and math.isfinite(y) and math.isfinite(z)):
+                continue
+            sums[0] += x
+            sums[1] += y
+            sums[2] += z
+            n += 1
+        if n == 0:
+            return None
+        g = [s / n for s in sums]
+        if math.sqrt(sum(v * v for v in g)) > 5.0:  # m/s^2, not g
+            g = [v / 9.80665 for v in g]
+        return tuple(g)
+
+    def update(self, t, accels):
+        """Feed one /data reading's `accels`, seen at t; returns True while tipped."""
+        if self.angle_deg <= 0:
+            return False
+        g = self.gravity(accels)
+        if g is None:
+            return self.tipped
+        size = math.sqrt(sum(v * v for v in g))
+        if not (self.min_g <= size <= self.max_g):
+            return self.tipped
+        unit = tuple(v / size for v in g)
+        self.samples += 1
+        if self.up is None:
+            if self._learn_t0 is None:
+                self._learn_t0 = t
+            for k in range(3):
+                self._sum[k] += unit[k]
+            if t - self._learn_t0 < self.learn_s:
+                return False
+            total = math.sqrt(sum(v * v for v in self._sum))
+            if total <= 0:
+                return False
+            self.up = tuple(v / total for v in self._sum)
+        dot = max(-1.0, min(1.0, sum(a * b for a, b in zip(unit, self.up))))
+        self.angle = math.degrees(math.acos(dot))
+        if self.angle > self.angle_deg:
+            if self._over_since is None:
+                self._over_since = t
+            if t - self._over_since >= self.hold_s:
+                self.tipped = True
+        else:
+            self._over_since = None
+            self.tipped = False
+        return self.tipped
+
+
 class LagCompensator:
     """Moves a late GPS fix forward by the driving commanded since it was taken.
 
@@ -360,11 +465,22 @@ class LagCompensator:
 
 
 class HeadingEstimator:
-    """Compass heading corrected by a bias learned from GPS course over ground."""
+    """Compass heading corrected by a bias learned from GPS course over ground.
+
+    On each straight stretch of at least min_move_m a line is fitted through
+    the GPS fixes against time; its direction is the course, and the course
+    minus the mean compass reading is one measurement of the bias. `last_fit`
+    records each fit's length, number of fixes and residual (the RMS distance
+    of the fixes from the line, across it). Drifting GPS error bends the line:
+    with `max_residual_m` set, a stretch whose residual is above it is left
+    out (counted in `rejected_fits`); with `weigh`, the bias is the weighted
+    circular mean of every measurement, each weighted by (length / residual)
+    squared, instead of a running update with `gain`. Both are off by default.
+    """
 
     def __init__(self, min_move_m=10.0, min_points=5, min_speed_mps=0.25,
                  settle_s=1.0, gain=0.3, max_angular=0.1, min_linear=0.2,
-                 max_spread=0.985, course_ttl_s=5.0):
+                 max_spread=0.985, course_ttl_s=5.0, max_residual_m=None, weigh=False):
         self.min_move_m = min_move_m
         self.min_points = min_points
         self.min_speed_mps = min_speed_mps
@@ -374,12 +490,17 @@ class HeadingEstimator:
         self.min_linear = min_linear
         self.max_spread = max_spread
         self.course_ttl_s = course_ttl_s
+        self.max_residual_m = max_residual_m
+        self.weigh = weigh
         self.bias = 0.0  # added to the compass reading
         self.calibrations = 0
+        self.rejected_fits = 0
+        self.last_fit = None
         self.last_course = None
         self.last_course_t = None
         self._angular_lp = 0.0
         self._straight_since = None
+        self._w_sin = self._w_cos = 0.0
         self._reset_segment()
 
     def _reset_segment(self):
@@ -429,17 +550,38 @@ class HeadingEstimator:
             return
         ve = sum((x - tm) * e for x, e in zip(ts, es)) / var
         vn = sum((x - tm) * n for x, n in zip(ts, ns)) / var
-        if math.hypot(ve, vn) < self.min_speed_mps:
+        speed = math.hypot(ve, vn)
+        if speed < self.min_speed_mps:
             return
         course = math.degrees(math.atan2(ve, vn)) % 360.0
         self.last_course, self.last_course_t = course, t
+        # How well the fixes lie on the line: their RMS distance from it, across
+        # it. The fitted line passes through the mean fix at the mean time.
+        em, nm = sum(es) / len(es), sum(ns) / len(ns)
+        across = [((e - em) * vn - (n - nm) * ve) / speed for e, n in zip(es, ns)]
+        residual = math.sqrt(sum(d * d for d in across) / len(across))
+        length = speed * (ts[-1] - ts[0])
+        self.last_fit = {"points": len(ts), "length_m": round(length, 1),
+                         "residual_m": round(residual, 2)}
         if self._n == 0:
             return
+        if self.max_residual_m is not None and residual > self.max_residual_m:
+            self.rejected_fits += 1
+            return  # the fixes don't lie on a line: drifting GPS, not a course
         if math.hypot(self._sin, self._cos) / self._n < self.max_spread:
             return  # the compass wandered too much on this stretch
         compass_mean = math.degrees(math.atan2(self._sin, self._cos)) % 360.0
         measured = wrap180(course - compass_mean)
-        if self.calibrations == 0:
+        if self.weigh:
+            # A stretch's measurement is trusted by how long and how straight
+            # it was: a 10 m stretch with 0.5 m of scatter counts 16 times one
+            # with 2 m of scatter.
+            w = (length / max(residual, 0.5)) ** 2
+            r = math.radians(measured)
+            self._w_sin += w * math.sin(r)
+            self._w_cos += w * math.cos(r)
+            self.bias = wrap180(math.degrees(math.atan2(self._w_sin, self._w_cos)))
+        elif self.calibrations == 0:
             self.bias = measured
         else:
             self.bias = wrap180(self.bias + self.gain * wrap180(measured - self.bias))
@@ -548,6 +690,9 @@ class Pilot:
     `telemetry_timeout_s`: the rover is stopped while no new telemetry has
     come in for longer than this (TelemetryWatch; 0 = off). If the rover has a
     telemetry_age() method (SdkClient: GET /status), that is asked too.
+
+    `tip_angle_deg`: the rover is stopped while its accelerometer shows gravity
+    more than this far from where it pointed at the start (TipWatch; 0 = off).
     """
 
     def __init__(self, rover, clock=time.monotonic, sleep=time.sleep,
@@ -556,7 +701,8 @@ class Pilot:
                  stuck_window_s=10.0, stuck_min_move_m=1.5, planner=None,
                  replan_m=30.0, replan_s=30.0, vision=None, conventions=None,
                  gps_lag_s=0.0, cmd_latency_s=0.8, speed_mps_at_full=0.79,
-                 telemetry_timeout_s=TELEMETRY_TIMEOUT_S, log=None):
+                 telemetry_timeout_s=TELEMETRY_TIMEOUT_S, tip_angle_deg=TIP_ANGLE_DEG,
+                 log=None):
         self.rover = rover
         self.clock = clock
         self.sleep = sleep
@@ -582,6 +728,8 @@ class Pilot:
             self.heading.bias = self.conventions.bias_deg
         self.telemetry = TelemetryWatch(telemetry_timeout_s, getattr(rover, "telemetry_age", None))
         self.telemetry_stops = 0
+        self.tip = TipWatch(tip_angle_deg)
+        self.tip_stops = 0
         self.cmd = (0.0, 0.0)
         self.pos = (None, None)
         self.reached = []
@@ -601,6 +749,7 @@ class Pilot:
         self._leg_recoveries = 0
         self._heading_now = None
         self._telemetry_ok = True
+        self._upright = True
 
     def send(self, linear, angular):
         self.cmd = (linear, angular)
@@ -638,6 +787,18 @@ class Pilot:
             else:
                 self._log("telemetry-back")
         return stale
+
+    def _tipped(self, t, accels):
+        """True while the accelerometer says the rover is on its side; logs each change."""
+        tipped = self.tip.update(t, accels)
+        if tipped == self._upright:
+            self._upright = not tipped
+            if tipped:
+                self.tip_stops += 1
+                self._log("tipped", angle_deg=round(self.tip.angle, 1))
+            else:
+                self._log("upright")
+        return tipped
 
     def _position(self, t):
         """Where the rover is taken to be: the smoothed GPS or, with gps_lag_s,
@@ -750,6 +911,7 @@ class Pilot:
             "compass_bias_deg": round(self.heading.bias, 1),
             "calibrations": self.heading.calibrations,
             "telemetry_stops": self.telemetry_stops,
+            "tip_stops": self.tip_stops,
             "legs": list(self.legs),
         }
         if self.vision is not None:
@@ -779,7 +941,8 @@ class Pilot:
                 self.heading.update(tick, new_fix, compass, *self.cmd)
                 self._heading_now = self.heading.heading(compass, tick)
                 stale = self._telemetry_stale(tick)
-                if stale or not self.gps.has_fix(tick):
+                tipped = self._tipped(tick, data.get("accels"))
+                if stale or tipped or not self.gps.has_fix(tick):
                     self._history.clear()
                     self.stop()
                     self._wait(tick)
@@ -1018,6 +1181,7 @@ class SimRover:
     By default orientation reads degrees clockwise and a positive angular
     turns right; `orientation_scale`, `orientation_clockwise` and
     `angular_sign` (-1 turns left) make a rover that doesn't.
+    It reports no accelerometer, so the tip watch never fires on it.
     """
 
     def __init__(self, checkpoints_m, seed=0, start=(37.8719, -122.2585),
@@ -1222,6 +1386,10 @@ def main(argv=None):
                    help="stop the rover while no new telemetry has come in for this many "
                         "seconds: the /data timestamp stays the same, or GET /status gives a "
                         "higher telemetry_age_s (0 = off)")
+    p.add_argument("--tip-angle", type=float, default=TIP_ANGLE_DEG,
+                   help="stop the rover while its accelerometer shows gravity more than this "
+                        "many degrees from where it pointed when the mission began, i.e. it "
+                        "has tipped over (0 = off)")
     p.add_argument("--osm", help="plan each leg on this saved Overpass JSON "
                                  "(see: python route_planner.py fetch)")
     p.add_argument("--fetch-osm", action="store_true",
@@ -1342,7 +1510,8 @@ def main(argv=None):
             pilot = Pilot(rover, clock=clock, sleep=sleep, steering=steering,
                           report_radius_m=args.report_radius, planner=planner, vision=vision,
                           conventions=conventions, gps_lag_s=args.gps_lag,
-                          telemetry_timeout_s=args.telemetry_timeout, log=log)
+                          telemetry_timeout_s=args.telemetry_timeout,
+                          tip_angle_deg=args.tip_angle, log=log)
             result = pilot.run(start=not args.no_start, timeout_s=args.timeout)
             if args.simulate and args.obstacles:
                 result["sim_contacts"] = rover.contacts

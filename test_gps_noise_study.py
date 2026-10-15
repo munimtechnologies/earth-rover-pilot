@@ -95,6 +95,7 @@ class FlyTests(unittest.TestCase):
             self.assertTrue(0.0 <= r["bias_err_deg"] <= 180.0)
         else:
             self.assertIsNone(r["bias_err_deg"])
+        self.assertEqual(r["rejected_fits"], 0)  # the shipped pilot has no gate
 
     def test_variant_settings_reach_the_pilot(self):
         self.assertEqual(gns.VARIANTS[gns.BASE_VARIANT],
@@ -105,6 +106,29 @@ class FlyTests(unittest.TestCase):
         self.assertEqual(gns.PROFILES["zero"]["gps_delay_s"], 1.5)
         self.assertNotIn("gps_period_s", gns.PROFILES["zero"])  # SimRover's 1 s
         self.assertEqual(gns.PROFILES["miniplus"]["gps_period_s"], 2.0)
+
+    def test_heading_variants_name_real_settings(self):
+        est = rp.HeadingEstimator()
+        for name, v in gns.VARIANTS.items():
+            for key in v.get("heading", {}):
+                self.assertTrue(hasattr(est, key), (name, key))
+        self.assertEqual(gns.VARIANTS["weigh"]["heading"], {"weigh": True})
+        self.assertEqual(gns.VARIANTS["residual2"]["heading"], {"max_residual_m": 2.0})
+        self.assertIsNone(est.max_residual_m)  # the shipped pilot: both off
+        self.assertFalse(est.weigh)
+        sim = rp.SimRover(rp.DEMO_MISSION)
+        pilot = rp.Pilot(sim, clock=sim.clock, sleep=sim.sleep)
+        gns.apply_heading(pilot, gns.VARIANTS["weigh-residual3"]["heading"])
+        self.assertTrue(pilot.heading.weigh)
+        self.assertEqual(pilot.heading.max_residual_m, 3.0)
+        with self.assertRaises(AttributeError):
+            gns.apply_heading(pilot, {"no_such_setting": 1})
+
+    def test_gated_weighted_variant_flies_drifting_gps(self):
+        r = gns.fly("demo", 1, "gm3-t10", "weigh-residual3", 1500.0)
+        self.assertTrue(r["ok"], r)
+        self.assertEqual(r["reached"], 4)
+        self.assertIsInstance(r["rejected_fits"], int)
 
     def test_two_second_gps_flies_the_demo(self):
         r = gns.fly("demo", 2, gns.BASE_NOISE, gns.BASE_VARIANT, 1500.0, "miniplus")
@@ -152,11 +176,13 @@ class StatsTests(unittest.TestCase):
                                1.188, places=3)
         self.assertEqual(o[("zero", "gm3-t30", "default")]["credits_beyond_tolerance"], 4)
         self.assertEqual(o[("zero", "gm3-t30", "default")]["completed"], 5)
+        self.assertEqual(o[("zero", "gm3-t30", "default")]["mean_rejected_fits"], 0.0)
+        self.assertEqual(o[("zero", "gm3-t30", "default")]["mean_calibrations"], 3.0)
 
     def test_main_writes_outputs(self):
         with tempfile.TemporaryDirectory() as d, redirect_stdout(io.StringIO()):
             code = gns.main(["--out-dir", d, "--seeds", "1", "--missions", "demo",
-                             "--noise", "gm3-t30", "--variants", "alpha1",
+                             "--noise", "gm3-t30", "--variants", "residual3",
                              "--profiles", "zero"])
             self.assertEqual(code, 0)
             with open(os.path.join(d, "summary.json")) as f:
@@ -165,10 +191,12 @@ class StatsTests(unittest.TestCase):
                 report = f.read()
         self.assertEqual(summary["runs"], 4)
         self.assertTrue(summary["done"])
+        self.assertEqual(summary["rover_pilot"], rp.__version__)
         self.assertEqual({(x["noise"], x["variant"]) for x in summary["overview"]},
-                         {("white1.5", "default"), ("white1.5", "alpha1"),
-                          ("gm3-t30", "default"), ("gm3-t30", "alpha1")})
+                         {("white1.5", "default"), ("white1.5", "residual3"),
+                          ("gm3-t30", "default"), ("gm3-t30", "residual3")})
         self.assertIn("gm3-t30", report)
+        self.assertIn("residual3", report)
 
     def test_unknown_noise_is_refused(self):
         with self.assertRaises(SystemExit):

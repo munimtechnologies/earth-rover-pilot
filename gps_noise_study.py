@@ -17,15 +17,17 @@ That can hurt the pilot in ways white noise never does:
 This flies the same missions on a rover that moves like the FrodoBots-2K
 ones (SIM_REAL, turning 30 deg/s per unit, steered with ROVER_STEERING) under
 a grid of GPS error models (sigma per axis, correlation time T; T = 0 is the
-simulator's white noise) and a few pilot variants (smoothing, report radius).
+simulator's white noise) and a few pilot variants (smoothing, report radius,
+and since 0.2.0 the compass-bias fit: a residual gate, longer stretches and
+weighting by fit quality, which rover_pilot 0.9.2 added as options).
 FrodoBots-2K was recorded on Earth Rover Zeros, but the challenge now drives
 the Earth Rover Mini+, whose telemetry the SDK README says comes every 2 s
 (top speed 4 km/h), so two more profiles get a GPS fix every 2 s, one of
 them also at 1.11 m/s per unit of linear.
 Per run it records completion, time, refused reports, recoveries, the error
-of the learned compass bias, and how far the rover truly was from each
-checkpoint when the server credited it. It writes summary.json, runs.jsonl
-and report.md.
+of the learned compass bias, how many bias fits were rejected, and how far
+the rover truly was from each checkpoint when the server credited it. It
+writes summary.json, runs.jsonl and report.md.
 
     python gps_noise_study.py --out-dir out --seeds 30
 
@@ -46,7 +48,7 @@ import time
 import gain_study as gs
 import rover_pilot as rp
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 # name: (sigma per axis in m, correlation time T in s; 0 = independent fixes).
 # The first is the simulator's current GPS and the baseline.
@@ -60,13 +62,23 @@ NOISE = {
     "gm6-t30": (6.0, 30.0),
 }
 BASE_NOISE = next(iter(NOISE))
-# Pilot variants; the first is the pilot as it ships.
+# Pilot variants; the first is the pilot as it ships. "heading" settings are
+# set on the pilot's HeadingEstimator (rover_pilot 0.9.2 or later).
 VARIANTS = {
     "default": {"alpha": 0.3, "report_radius_m": 10.0},
     "alpha1": {"alpha": 1.0, "report_radius_m": 10.0},
     "alpha0.15": {"alpha": 0.15, "report_radius_m": 10.0},
     "radius7": {"alpha": 0.3, "report_radius_m": 7.0},
     "radius12": {"alpha": 0.3, "report_radius_m": 12.0},
+    "residual2": {"alpha": 0.3, "report_radius_m": 10.0, "heading": {"max_residual_m": 2.0}},
+    "residual3": {"alpha": 0.3, "report_radius_m": 10.0, "heading": {"max_residual_m": 3.0}},
+    "move20": {"alpha": 0.3, "report_radius_m": 10.0, "heading": {"min_move_m": 20.0}},
+    "move30": {"alpha": 0.3, "report_radius_m": 10.0, "heading": {"min_move_m": 30.0}},
+    "weigh": {"alpha": 0.3, "report_radius_m": 10.0, "heading": {"weigh": True}},
+    "weigh-move20": {"alpha": 0.3, "report_radius_m": 10.0,
+                     "heading": {"weigh": True, "min_move_m": 20.0}},
+    "weigh-residual3": {"alpha": 0.3, "report_radius_m": 10.0,
+                        "heading": {"weigh": True, "max_residual_m": 3.0}},
 }
 BASE_VARIANT = next(iter(VARIANTS))
 # Rovers; the first moves like the FrodoBots-2K ones and is the baseline.
@@ -127,6 +139,16 @@ class CorrelatedGpsRover(rp.SimRover):
         return res
 
 
+def apply_heading(pilot, settings):
+    """Set a variant's "heading" settings on the pilot's HeadingEstimator; a
+    setting the installed rover_pilot doesn't know is an error, not a silent no-op."""
+    for key, value in settings.items():
+        if not hasattr(pilot.heading, key):
+            raise AttributeError("rover_pilot %s has no HeadingEstimator.%s"
+                                 % (rp.__version__, key))
+        setattr(pilot.heading, key, value)
+
+
 def fly(mission, seed, noise, variant, timeout_s, profile=BASE_PROFILE):
     sigma, tau = NOISE[noise]
     v = VARIANTS[variant]
@@ -136,6 +158,7 @@ def fly(mission, seed, noise, variant, timeout_s, profile=BASE_PROFILE):
                      steering=rp.make_steering(simulate=False),
                      report_radius_m=v["report_radius_m"])
     pilot.gps.alpha = v["alpha"]
+    apply_heading(pilot, v.get("heading", {}))
     res = pilot.run(timeout_s=timeout_s)
     # The compass reads heading + compass_error, so the right bias is -compass_error.
     bias_err = abs(rp.wrap180(res["compass_bias_deg"] + sim.compass_error))
@@ -144,6 +167,7 @@ def fly(mission, seed, noise, variant, timeout_s, profile=BASE_PROFILE):
             "reports": res["reports"], "recoveries": res["recoveries"],
             "travelled_m": round(sim.travelled, 1),
             "calibrations": res["calibrations"],
+            "rejected_fits": getattr(pilot.heading, "rejected_fits", 0),
             "bias_err_deg": round(bias_err, 1) if res["calibrations"] else None,
             "credited_true_m": [round(d, 2) for d in sim.credited_true_m]}
 
@@ -190,6 +214,8 @@ def _row(rs):
             "median_time_s": _median([r["elapsed_s"] for r in ok]),
             "mean_refused_reports": _mean([r["reports"] - r["reached"] for r in rs]),
             "mean_recoveries": _mean([r["recoveries"] for r in rs]),
+            "mean_calibrations": _mean([r["calibrations"] for r in rs]),
+            "mean_rejected_fits": _mean([r.get("rejected_fits", 0) for r in rs]),
             "median_bias_err_deg": _median(biases), "p90_bias_err_deg": pct(biases, 90),
             "credits": len(credits), "median_credit_true_m": _median(credits, 2),
             "p90_credit_true_m": pct(credits, 90),
@@ -288,20 +314,25 @@ def write_outputs(out_dir, runs, started, args, done):
           "profiles %s, steered with ROVER_STEERING %s. Seeds 1-%d, timeout %d s, missions %s. "
           "Noise models: name = sigma per axis (m) and correlation time T (s); white = "
           "independent fixes, gmS-tT = Gauss-Markov. Within each profile the baseline is %s "
-          "with the %s pilot."
+          "with the %s pilot. Variants: %s."
           % (__version__, rp.__version__, json.dumps(PROFILES), json.dumps(rp.ROVER_STEERING),
              args.seeds, args.timeout, ", ".join(dict.fromkeys(r["mission"] for r in runs)),
-             BASE_NOISE, BASE_VARIANT), "",
+             BASE_NOISE, BASE_VARIANT,
+             json.dumps({k: VARIANTS[k] for k in dict.fromkeys(r["variant"] for r in runs)})),
+          "",
           "Bias error: how far the learned compass bias ended from the true one. Credit "
           "distance: how far the rover truly was from a checkpoint when the server (which "
-          "judges the reported GPS, like the real one) credited it; tolerance %g m." % TOLERANCE_M,
+          "judges the reported GPS, like the real one) credited it; tolerance %g m. Fits: "
+          "compass-bias fits accepted / rejected per run." % TOLERANCE_M,
           "", "## Overview (all missions pooled; time ratio against the profile's baseline)", "",
           "| profile | noise | variant | completed | time ratio | refused/run | recoveries/run | "
-          "bias err median / p90 (deg) | credit dist median / p90 / max (m) | credits beyond "
-          "%g m |" % TOLERANCE_M, "|---|---|---|---|---|---|---|---|---|---|"]
-    md += ["| %s | %s | %s | %d/%d | %s | %s | %s | %s / %s | %s / %s / %s | %d/%d |"
+          "fits accepted / rejected per run | bias err median / p90 (deg) | credit dist median "
+          "/ p90 / max (m) | credits beyond %g m |" % TOLERANCE_M,
+          "|---|---|---|---|---|---|---|---|---|---|---|"]
+    md += ["| %s | %s | %s | %d/%d | %s | %s | %s | %s / %s | %s / %s | %s / %s / %s | %d/%d |"
            % (o["profile"], o["noise"], o["variant"], o["completed"], o["runs"],
               o["time_ratio_to_baseline"], o["mean_refused_reports"], o["mean_recoveries"],
+              o["mean_calibrations"], o["mean_rejected_fits"],
               o["median_bias_err_deg"], o["p90_bias_err_deg"], o["median_credit_true_m"],
               o["p90_credit_true_m"], o["max_credit_true_m"], o["credits_beyond_tolerance"],
               o["credits"])
@@ -374,7 +405,7 @@ def main(argv=None):
                             r = {"ok": False, "reason": "%s: %s" % (type(exc).__name__, exc),
                                  "elapsed_s": None, "reached": 0, "checkpoints": None,
                                  "reports": 0, "recoveries": 0, "travelled_m": 0.0,
-                                 "calibrations": 0, "bias_err_deg": None,
+                                 "calibrations": 0, "rejected_fits": 0, "bias_err_deg": None,
                                  "credited_true_m": []}
                         r.update(profile=profile, noise=noise, variant=variant,
                                  mission=mission, seed=seed)
