@@ -6,7 +6,7 @@ The [Earth Rover Challenge](https://earth-rover-challenge.github.io/) uses this 
 
 Made by **MV2 of Munim, Inc.** The code was written with AI agents.
 
-**Status (v0.8.0):** the pilot has been tested only against the built-in simulator and synthetic maps. It has not driven a real rover yet. What real rovers do with its commands has been measured on 279 recorded rides from the public FrodoBots-2K dataset ([FINDINGS-frodobots-2k.md](FINDINGS-frodobots-2k.md)), the simulator can move like them (`--sim-real`), and the steering for a real rover was chosen by a simulation study on that motion (`gain_study.py`). The camera layer has now seen real recorded frames, and it isn't ready: it saw obstacles on most clear paths (see "Front camera" below). Treat the defaults as a starting point and tune them on the first real runs, starting with `--calibrate`.
+**Status (v0.8.1):** the pilot has been tested only against the built-in simulator and synthetic maps. It has not driven a real rover yet. What real rovers do with its commands has been measured on 279 recorded rides from the public FrodoBots-2K dataset ([FINDINGS-frodobots-2k.md](FINDINGS-frodobots-2k.md)), the simulator can move like them (`--sim-real`), and the steering for a real rover was chosen by a simulation study on that motion (`gain_study.py`). The camera layer has now seen real recorded frames, and it isn't ready: it saw obstacles on most clear paths (see "Front camera" below). Treat the defaults as a starting point and tune them on the first real runs, starting with `--calibrate`. v0.8.1 stops the rover when its telemetry stops coming in (see "Lost telemetry" below).
 
 ## What the recorded rides say
 
@@ -28,6 +28,7 @@ The SDK ships a simple waypoint example. On a real rover, a bearing-follower lik
 |---|---|
 | The SDK doesn't say which way a positive `angular` turns, or what `orientation` reads (its example shows `128`). Guess wrong and every correction turns the rover further away. | Without a calibration, a real rover is driven with a positive `angular` turning left, as the recorded rides show. `--calibrate` spins the rover, drives two short straights with a turn between them and measures both (see below). `--calibration` applies the result. |
 | With no fix, the rover reports latitude/longitude `1000`. Bad parsing turns missing values into 0/0. | `GpsFilter` drops no-fix, 0/0, NaN and impossible jumps. It smooths the remaining fixes and stops the rover if no fix has arrived for 3 s. |
+| The SDK caches the last telemetry it got, so when the rover's link drops, `/data` keeps showing the same GPS fix and the rover would be steered blind. | `TelemetryWatch` stops the rover once no new telemetry has come in for 5 s, and lets it drive on when telemetry is back (see "Lost telemetry" below). |
 | The compass is offset by the motors, the mount and local magnetic fields. | `HeadingEstimator` learns the bias as the rover drives. On straight stretches it fits a line through the GPS fixes and compares that course with the mean compass reading, then corrects the offset gradually. If the compass drops out, it falls back to the last GPS course. |
 | A checkpoint a few hundred metres away is behind buildings, fences or water. | With `--osm` or `--fetch-osm`, each leg is planned on OpenStreetMap footways, paths and sidewalks (`route_planner.py`), and `PathFollower` steers along it (pure pursuit, 8 m lookahead). If the rover strays more than 30 m it replans. |
 | A marathon has dozens of legs; finding a leg with no walkable route halfway through costs the run. | `--check-route` plans every remaining leg from where the rover stands, without driving, and reports each leg's straight-line and routed length (see below). |
@@ -83,6 +84,7 @@ Options:
 - `--turn-in-place`: turn in place when the heading error is above this many degrees. Default 90 on a real rover, 60 in the simulator.
 - `--report-radius 10`
 - `--gps-lag 0`: seconds the GPS runs behind the rover. Above 0, each fix is moved forward by the driving commanded since it was taken, assuming 0.79 m/s at full `linear` and commands 0.8 s late. Off by default; see "Late GPS" below.
+- `--telemetry-timeout 5`: stop the rover while no new telemetry has come in for this many seconds; 0 turns it off. See "Lost telemetry" below.
 - `--osm area.json`: plan each leg on a saved map area (see below).
 - `--fetch-osm`: fetch the map around each leg from Overpass as needed.
 - `--check-route`, `--route-out legs.geojson`: plan every remaining leg and report it, without driving (see below).
@@ -92,7 +94,7 @@ Options:
 - `--timeout 3600`
 - `--no-start`: resume a mission that has already started.
 
-Ctrl-C sends a stop. The log (`--log`) records one JSON line per second, plus each checkpoint, refusal, plan and recovery, so a run can be checked afterwards. With `--vision`, each line also has `clear_m`, how far ahead the camera saw clear ground.
+Ctrl-C sends a stop. The log (`--log`) records one JSON line per second, plus each checkpoint, refusal, plan and recovery, and each time telemetry is lost (`telemetry-stale`) or back (`telemetry-back`), so a run can be checked afterwards. With `--vision`, each line also has `clear_m`, how far ahead the camera saw clear ground.
 
 ### Leg summaries
 
@@ -103,7 +105,15 @@ The result printed at the end has a `legs` list, and the log has one `checkpoint
 - `reports`: how many `/checkpoint-reached` calls it took (1 means the first one counted)
 - `recoveries`: how many back-up-and-turn moves the leg needed
 
-On a long mission these show which legs were slow or hard, so the next run can be tuned for them.
+On a long mission these show which legs were slow or hard, so the next run can be tuned for them. The result also has `telemetry_stops`, how many times the rover was stopped for lost telemetry.
+
+## Lost telemetry (`--telemetry-timeout`)
+
+The SDK caches the telemetry the rover pushes to it, and `/data` serves the latest copy. Its README says the rover "executes its last command until a new one arrives", and that the SDK's own watchdog can't help when the rover itself loses its connection. Before v0.8.1, a repeated GPS reading counted as the fix still holding, so if telemetry stopped while commands still got through, the pilot went on steering toward the checkpoint from a position that no longer moved. In the simulator, with telemetry frozen 15 s into the demo, it kept sending drive and turn commands until the mission timed out.
+
+Now the pilot counts a reading as new only when its `/data` `timestamp` changes. It also asks `GET /status` once a second for the SDK's `telemetry_age_s` (seconds since the last telemetry message), where the SDK has it. When either shows no new telemetry for more than 5 s, the pilot sends stop commands and logs `telemetry-stale`. When readings come in again, it logs `telemetry-back` and drives on. An Earth Rover Mini+ reports every 2 s (SDK README), so one late or lost report doesn't stop it, and two in a row do.
+
+Limits: the SDK README doesn't define the `/data` `timestamp`. If it turns out to change on every request rather than with each rover report, only `/status` catches a stall. An SDK without `/status` and without a usable timestamp gives the pilot nothing to go on, and it drives as before (`test_telemetry.py` checks that case too). If a real rover is stopped for this when its telemetry is fine, the log shows `telemetry-stale` lines; `--telemetry-timeout 0` turns the check off. In the simulator the timestamp changes on every reading, so simulated missions fly exactly as before.
 
 ## Steering for a real rover (`gain_study.py`)
 
@@ -232,6 +242,7 @@ Map data © [OpenStreetMap contributors](https://www.openstreetmap.org/copyright
 - `/checkpoints-list` returns the mission's checkpoints before the first `/start-mission`, so `--check-route` can run before the clock starts. If it returns none, the check has to run after the start, or from a copy of the checkpoints.
 - The shape of the `/missions` answer: the pilot accepts a list, or a list under `missions`, `items` or `data`.
 - The steering (`angular` up to 1.0, turn in place above 90°) comes from a simulation of the recorded motion. Watch the first legs; `--max-angular` and `--turn-in-place` change it.
+- The `/data` `timestamp` changes with each telemetry report from the rover. If the log shows `telemetry-stale` while the rover's telemetry is plainly fine, it doesn't; use `--telemetry-timeout 0` and rely on the SDK watchdog.
 - The front camera's field of view, height and tilt (`--camera-*`), if `--vision` is tried at all. A wrong tilt makes obstacles look nearer or farther than they are.
 - OSM sidewalks are mapped well enough in the mission's area. Where they aren't, roads stand in for them.
 
@@ -245,7 +256,7 @@ Map data © [OpenStreetMap contributors](https://www.openstreetmap.org/copyright
 ## Tests
 
 ```
-python -m unittest test_rover_pilot test_rover_defaults test_steering_defaults test_calibrate test_calibrate_real test_route_planner test_free_space test_free_space_skip test_frodo_motion test_gps_lag test_gain_study -v
+python -m unittest test_rover_pilot test_rover_defaults test_steering_defaults test_telemetry test_calibrate test_calibrate_real test_route_planner test_free_space test_free_space_skip test_frodo_motion test_gps_lag test_gain_study -v
 ```
 
 The tests cover:
@@ -258,6 +269,7 @@ The tests cover:
 - orientation and turn conventions: degrees, 0–255 and radians, either direction, a left-turning `angular`; a rover with the opposite `angular` sign going nowhere without a calibration, and a rover with every convention reversed flying the whole mission with one
 - the real-rover defaults: a positive `angular` turning left, used by the command line on a real SDK without `--calibration`, overridden by a calibration, not used in the simulator, and flying the whole mission on a simulated left-turning rover
 - the real-rover steering: `angular` up to 1.0 and turning in place above 90° on a real SDK, the simulator's own steering kept, `--max-angular` and `--turn-in-place` overriding either, and a real-like left-turning rover at 30°/s flying the demo with it
+- lost telemetry: the timestamp and `/status` checks, `/status` asked at most once a second, the simulator flying exactly as with the check off, a rover whose telemetry freezes 15 s into the demo stopped within about 5 s (by timestamp, or by `/status` alone), the same freeze going unnoticed with neither, a rover that drives on and finishes the mission when telemetry is back, `GET /status` parsing, and `--telemetry-timeout`
 - calibration in the simulator: the usual rover, one with every convention reversed, a mirrored compass only, a left-turning `angular` only; the starting bias, turn rate and speed it measures; and failures (no GPS fix, no turn seen, a rover that can't move), each ending with a stop
 - calibration on a rover that moves like the recorded ones (30°/s per unit): a 30 s spin falls short of a whole turn, and the longer spin calibrates it, turning either way
 - the command line: calibrate a quirky simulated rover, save the result and fly the mission with it; a failed calibration is refused

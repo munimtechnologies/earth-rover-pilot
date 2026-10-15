@@ -28,6 +28,10 @@ What it adds over a plain bearing-follower:
 - Optionally, a late GPS fix is moved forward by the driving commanded since
   it was taken (--gps-lag); on the FrodoBots-2K rides the GPS runs about
   1.5 s behind the wheels.
+- The SDK keeps serving the last telemetry it got, so a rover whose link has
+  dropped still shows a GPS fix. When no new telemetry has come in for 5 s
+  (the /data timestamp stays the same, or GET /status says so), the rover is
+  stopped until it is back (TelemetryWatch, --telemetry-timeout).
 - Being stuck (driving with no GPS progress) triggers a back-up-and-turn move.
 - Each leg is summed up (time, reports, recoveries) in the result and the log.
 - A built-in simulator (command latency, GPS noise, delay and dropouts, compass
@@ -50,7 +54,7 @@ import time
 import urllib.error
 import urllib.request
 
-__version__ = "0.8.0"
+__version__ = "0.8.1"
 
 EARTH_RADIUS_M = 6371000.0
 M_PER_DEG = EARTH_RADIUS_M * math.pi / 180.0
@@ -58,6 +62,10 @@ NO_FIX = 1000.0  # lat/lon the rover reports when it has no GPS fix
 # The SDK can hold the final /checkpoint-reached for up to 12 s while it
 # confirms the rover has stopped (SAFETY_STOP_CONFIRM_TIMEOUT_S), so wait longer.
 REPORT_TIMEOUT_S = 20.0
+# Stop the rover when no new telemetry has come in for this long. An Earth
+# Rover Mini+ reports every 2 s (SDK README), so one late or lost report
+# (a 4 s gap) doesn't stop it, and two in a row do.
+TELEMETRY_TIMEOUT_S = 5.0
 
 # (north_m, east_m) of each checkpoint from the start, for --simulate.
 DEMO_MISSION = [(40.0, 30.0), (85.0, -5.0), (60.0, -60.0), (10.0, -40.0)]
@@ -260,6 +268,52 @@ class GpsFilter:
     def has_fix(self, t):
         return (self.lat is not None and self.fix_t is not None
                 and t - self.fix_t <= self.max_age_s)
+
+
+class TelemetryWatch:
+    """Notices when the rover's telemetry has stopped coming in.
+
+    The SDK caches the last telemetry it got and /data keeps serving it, so a
+    rover whose link has dropped still shows a GPS fix, and GpsFilter takes
+    each repeat as the fix still holding. A reading counts as new when its
+    /data timestamp changes; readings without a timestamp leave that check
+    out. `age`, if given, returns the SDK's own seconds since the last
+    telemetry message (GET /status telemetry_age_s, or None) and is asked at
+    most every `poll_s`. A timeout of 0 turns the watch off.
+    """
+
+    def __init__(self, timeout_s=TELEMETRY_TIMEOUT_S, age=None, poll_s=1.0):
+        self.timeout_s = timeout_s
+        self.age = age
+        self.poll_s = poll_s
+        self.stamp = None    # last /data timestamp seen
+        self.stamp_t = None  # when it was first seen
+        self.sdk_age = None  # last telemetry_age_s the SDK gave
+        self._poll_t = None
+
+    def update(self, t, stamp):
+        """Feed one /data reading's timestamp, seen at t."""
+        try:
+            stamp = float(stamp)
+        except (TypeError, ValueError):
+            stamp = None
+        if stamp is not None and math.isfinite(stamp) and stamp != self.stamp:
+            self.stamp, self.stamp_t = stamp, t
+        if self.age is not None and (self._poll_t is None or t - self._poll_t >= self.poll_s):
+            self._poll_t = t
+            self.sdk_age = self.age()
+
+    def since(self, t):
+        """Seconds since the timestamp last changed, or None if there is none."""
+        return None if self.stamp_t is None else t - self.stamp_t
+
+    def stale(self, t):
+        if self.timeout_s <= 0:
+            return False
+        since = self.since(t)
+        if since is not None and since > self.timeout_s:
+            return True
+        return self.sdk_age is not None and self.sdk_age > self.timeout_s
 
 
 class LagCompensator:
@@ -479,6 +533,10 @@ class Pilot:
     then taken as the last fix moved forward by the driving commanded since
     (LagCompensator, with `cmd_latency_s` and `speed_mps_at_full`) instead of
     the smoothed fixes.
+
+    `telemetry_timeout_s`: the rover is stopped while no new telemetry has
+    come in for longer than this (TelemetryWatch; 0 = off). If the rover has a
+    telemetry_age() method (SdkClient: GET /status), that is asked too.
     """
 
     def __init__(self, rover, clock=time.monotonic, sleep=time.sleep,
@@ -486,7 +544,8 @@ class Pilot:
                  hold_radius_m=3.0, retry_s=2.0, settle_s=1.5,
                  stuck_window_s=10.0, stuck_min_move_m=1.5, planner=None,
                  replan_m=30.0, replan_s=30.0, vision=None, conventions=None,
-                 gps_lag_s=0.0, cmd_latency_s=0.8, speed_mps_at_full=0.79, log=None):
+                 gps_lag_s=0.0, cmd_latency_s=0.8, speed_mps_at_full=0.79,
+                 telemetry_timeout_s=TELEMETRY_TIMEOUT_S, log=None):
         self.rover = rover
         self.clock = clock
         self.sleep = sleep
@@ -510,6 +569,8 @@ class Pilot:
         self.heading = HeadingEstimator()
         if self.conventions.bias_deg is not None:
             self.heading.bias = self.conventions.bias_deg
+        self.telemetry = TelemetryWatch(telemetry_timeout_s, getattr(rover, "telemetry_age", None))
+        self.telemetry_stops = 0
         self.cmd = (0.0, 0.0)
         self.pos = (None, None)
         self.reached = []
@@ -528,6 +589,7 @@ class Pilot:
         self._leg_reports = 0
         self._leg_recoveries = 0
         self._heading_now = None
+        self._telemetry_ok = True
 
     def send(self, linear, angular):
         self.cmd = (linear, angular)
@@ -551,6 +613,20 @@ class Pilot:
     def _log(self, event, **fields):
         if self.log:
             self.log(dict({"t": round(self.clock(), 2), "event": event}, **fields))
+
+    def _telemetry_stale(self, t):
+        """True while the rover's telemetry has stopped coming in; logs each change."""
+        stale = self.telemetry.stale(t)
+        if stale == self._telemetry_ok:
+            self._telemetry_ok = not stale
+            if stale:
+                self.telemetry_stops += 1
+                since = self.telemetry.since(t)
+                self._log("telemetry-stale", since_s=None if since is None else round(since, 1),
+                          sdk_age_s=self.telemetry.sdk_age)
+            else:
+                self._log("telemetry-back")
+        return stale
 
     def _position(self, t):
         """Where the rover is taken to be: the smoothed GPS or, with gps_lag_s,
@@ -662,6 +738,7 @@ class Pilot:
             "elapsed_s": round(self.clock() - t0, 1),
             "compass_bias_deg": round(self.heading.bias, 1),
             "calibrations": self.heading.calibrations,
+            "telemetry_stops": self.telemetry_stops,
             "legs": list(self.legs),
         }
         if self.vision is not None:
@@ -685,11 +762,13 @@ class Pilot:
                 if tick - t0 > timeout_s:
                     return self._result(False, "timeout", t0, total)
                 data = self.rover.data() or {}
+                self.telemetry.update(tick, data.get("timestamp"))
                 new_fix = self.gps.update(data.get("latitude"), data.get("longitude"), tick)
                 compass = self.conventions.heading(data.get("orientation"))
                 self.heading.update(tick, new_fix, compass, *self.cmd)
                 self._heading_now = self.heading.heading(compass, tick)
-                if not self.gps.has_fix(tick):
+                stale = self._telemetry_stale(tick)
+                if stale or not self.gps.has_fix(tick):
                     self._history.clear()
                     self.stop()
                     self._wait(tick)
@@ -820,6 +899,22 @@ class SdkClient:
     def data(self):
         status, body = self._req("GET", "/data")
         return body if status == 200 else {}
+
+    def telemetry_age(self):
+        """Seconds since the SDK last got telemetry from the rover (GET /status
+        telemetry_age_s), or None if it doesn't say (no telemetry yet, or an
+        SDK without /status)."""
+        status, body = self._req("GET", "/status", timeout=2.0)
+        if status != 200:
+            return None
+        age = body.get("telemetry_age_s")
+        if isinstance(age, bool):
+            return None
+        try:
+            age = float(age)
+        except (TypeError, ValueError):
+            return None
+        return age if math.isfinite(age) else None
 
     def control(self, linear, angular):
         self._req("POST", "/control", {"command": {
@@ -1112,6 +1207,10 @@ def main(argv=None):
                    help="seconds the GPS runs behind the rover (FrodoBots-2K: about 1.5); "
                         "each fix is moved forward by the driving commanded since, assuming "
                         "0.79 m/s at full linear and commands 0.8 s late (0 = off)")
+    p.add_argument("--telemetry-timeout", type=float, default=TELEMETRY_TIMEOUT_S,
+                   help="stop the rover while no new telemetry has come in for this many "
+                        "seconds: the /data timestamp stays the same, or GET /status gives a "
+                        "higher telemetry_age_s (0 = off)")
     p.add_argument("--osm", help="plan each leg on this saved Overpass JSON "
                                  "(see: python route_planner.py fetch)")
     p.add_argument("--fetch-osm", action="store_true",
@@ -1226,7 +1325,8 @@ def main(argv=None):
             vision = free_space.VisionGuard(source, camera=camera) if camera else None
             pilot = Pilot(rover, clock=clock, sleep=sleep, steering=steering,
                           report_radius_m=args.report_radius, planner=planner, vision=vision,
-                          conventions=conventions, gps_lag_s=args.gps_lag, log=log)
+                          conventions=conventions, gps_lag_s=args.gps_lag,
+                          telemetry_timeout_s=args.telemetry_timeout, log=log)
             result = pilot.run(start=not args.no_start, timeout_s=args.timeout)
             if args.simulate and args.obstacles:
                 result["sim_contacts"] = rover.contacts
