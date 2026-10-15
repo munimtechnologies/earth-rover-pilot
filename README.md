@@ -6,7 +6,7 @@ The [Earth Rover Challenge](https://earth-rover-challenge.github.io/) uses this 
 
 Made by **MV2 of Munim, Inc.** The code was written with AI agents.
 
-**Status (v0.9.2):** the pilot has been tested only against the built-in simulator, synthetic maps and recorded data. It has not driven a real rover yet. What real rovers do with its commands has been measured on 279 recorded rides from the public FrodoBots-2K dataset ([FINDINGS-frodobots-2k.md](FINDINGS-frodobots-2k.md)), the simulator can move like them (`--sim-real`), and the steering for a real rover was chosen by a simulation study on that motion (`gain_study.py`). v0.9.0 reads a real rover's camera with the settings that saw the fewest phantom obstacles on 493 recorded front-camera frames: about 1 in 12 clear paths instead of 1 in 3 (see "Front camera" below). It is still experimental. v0.9.1 adds `gps_noise_study.py`: the pilot completed all 9,450 simulated missions under GPS error that drifts as a real receiver's does, up to 6 m (see "Drifting GPS" below). v0.9.2 stops a rover that has tipped over, read from its accelerometer (see "Tipped rover" below), and lets the compass-bias fit leave out or down-weight stretches bent by drifting GPS (off by default until the queued study says). Treat the defaults as a starting point and tune them on the first real runs, starting with `--calibrate`. Since v0.8.1 the rover is stopped when its telemetry stops coming in (see "Lost telemetry" below).
+**Status (v0.9.3):** the pilot has been tested only against the built-in simulator, synthetic maps and recorded data. It has not driven a real rover yet. What real rovers do with its commands has been measured on 279 recorded rides from the public FrodoBots-2K dataset ([FINDINGS-frodobots-2k.md](FINDINGS-frodobots-2k.md)), the simulator can move like them (`--sim-real`), and the steering for a real rover was chosen by a simulation study on that motion (`gain_study.py`). v0.9.0 reads a real rover's camera with the settings that saw the fewest phantom obstacles on 493 recorded front-camera frames: about 1 in 12 clear paths instead of 1 in 3 (see "Front camera" below). It is still experimental. v0.9.1 adds `gps_noise_study.py`: the pilot completed all 9,450 simulated missions under GPS error that drifts as a real receiver's does, up to 6 m (see "Drifting GPS" below). v0.9.2 stops a rover that has tipped over, read from its accelerometer (see "Tipped rover" below), and lets the compass-bias fit leave out or down-weight stretches bent by drifting GPS (off by default until the queued study says). v0.9.3 adds `marathon.py`, which works out what beating the human Berkeley-Stanford time asks of a Mini+ and checks a planned route against one charge (see "Marathon budget" below). Treat the defaults as a starting point and tune them on the first real runs, starting with `--calibrate`. Since v0.8.1 the rover is stopped when its telemetry stops coming in (see "Lost telemetry" below).
 
 ## What the recorded rides say
 
@@ -34,7 +34,7 @@ The SDK ships a simple waypoint example. On a real rover, a bearing-follower lik
 | A rover on its side still has a GPS fix and a compass, and its camera, turned 90°, may read as clear ground; a pilot would keep driving its wheels in the air. | `TipWatch` learns which way gravity points in the accelerometer at the start of the mission and stops the rover once it has pointed more than 50° away for a second, until it is upright again (see "Tipped rover" below). |
 | The compass is offset by the motors, the mount and local magnetic fields. | `HeadingEstimator` learns the bias as the rover drives. On straight stretches it fits a line through the GPS fixes and compares that course with the mean compass reading, then corrects the offset gradually. It measures how straight the fixes lie, and can leave out or down-weight stretches bent by drifting GPS (off by default). If the compass drops out, it falls back to the last GPS course. |
 | A checkpoint a few hundred metres away is behind buildings, fences or water. | With `--osm` or `--fetch-osm`, each leg is planned on OpenStreetMap footways, paths and sidewalks (`route_planner.py`), and `PathFollower` steers along it (pure pursuit, 8 m lookahead). If the rover strays more than 30 m it replans. |
-| A marathon has dozens of legs; finding a leg with no walkable route halfway through costs the run. | `--check-route` plans every remaining leg from where the rover stands, without driving, and reports each leg's straight-line and routed length (see below). |
+| A marathon has dozens of legs; finding a leg with no walkable route halfway through costs the run. | `--check-route` plans every remaining leg from where the rover stands, without driving, and reports each leg's straight-line and routed length (see below). `marathon.py route` then says whether the planned route fits one Mini+ charge. |
 | A bin, a planter or a parked scooter sits on the line the rover is driving. | With `--vision`, `free_space.py` reads the front camera 5 times a second, works out how far the rover could drive in each direction, and bends the heading to the nearest clear one. Experimental: on recorded frames it still sees a phantom obstacle on about 1 in 12 clear paths, and how many real ones it misses isn't measured (see below). |
 | GPS noise is about the size of a 2 m arrival radius, so the rover never "arrives". | Checkpoints are reported from 10 m, inside the server's 15 m tolerance. A refused report is retried every 2 s. Inside 3 m the rover holds still instead of circling. |
 | The SDK confirms the last checkpoint only after a confirmed stop, and may hold that request for up to 12 s. | Before the final report the pilot sends stop commands for 1.5 s. It waits up to 20 s for the answer. If none arrives, it reads `/checkpoints-list` to see whether the report counted before trying again. |
@@ -82,7 +82,7 @@ Options:
 - `--list-missions`: print the missions the SDK lists for this bot (`GET /missions`: slug, distance and number of checkpoints) and exit. Set one as `MISSION_SLUG`.
 - `--calibrate`, `--calibration-out rover.json`: measure which way orientation and angular run, and save the result (see below).
 - `--calibration rover.json`: drive with a saved calibration. Without it, the pilot assumes orientation in degrees clockwise from north and a positive angular turning left on a real rover. The simulator keeps its own defaults (positive angular turning right).
-- `--cruise 0.6`: forward command, 0 to 1. The SDK suggests 0.3–0.5 for first tests. On the recorded rides, 0.6 covered about 0.46 m/s.
+- `--cruise 0.6`: forward command, 0 to 1. The SDK suggests 0.3–0.5 for first tests. On the recorded rides, 0.6 covered about 0.46 m/s. On a Mini+ (4 km/h at full `linear`) 0.6 is at most 0.67 m/s, below the human marathon pace; see "Marathon budget" below.
 - `--max-angular`: the largest `angular` the pilot sends, 0 to 1. Default 1.0 on a real rover, 0.6 in the simulator.
 - `--turn-in-place`: turn in place when the heading error is above this many degrees. Default 90 on a real rover, 60 in the simulator.
 - `--report-radius 10`: report a checkpoint once the rover is this many metres from it (the server's tolerance is about 15). In simulation 12 was 4–7% faster, but with noisy GPS more of its credits came with the rover truly beyond 15 m; see "Drifting GPS" below.
@@ -226,7 +226,7 @@ It reads a few front-camera video segments and the control log of 2 rides per pa
 ## Check a mission before driving it
 
 ```
-python rover_pilot.py --fetch-osm --check-route --route-out legs.geojson
+python rover_pilot.py --fetch-osm --check-route --route-out legs.geojson > check.json
 ```
 
 This reads the rover's GPS position and the mission's checkpoints, plans every leg that is still to be driven, and prints a summary. No command is sent to the rover. For each leg it gives `straight_m`, `route_m` (the planned walkable route, or `null` where none was found) and `detour` (route length divided by straight-line length). The exit code is 0 only if every leg has a route. Open `legs.geojson` in any GeoJSON viewer to see each leg on a map.
@@ -235,8 +235,30 @@ Things to look at before a long run:
 - a leg with `route_m: null`: the pilot would head straight at that checkpoint. Check the map there, or fetch a bigger area.
 - a large `detour` (say above 2): the map may be missing a crossing or a path. Look at that leg on the map.
 - an `error` on a leg: the planner failed there (for example, Overpass was busy). Run the check again later.
+- the total `route_m` against the rover's range: `python marathon.py route check.json` (see below).
 
 Try it in the simulator with any saved map that covers its start point (37.8719, -122.2585): `python rover_pilot.py --simulate --osm area.json --check-route`.
+
+## Marathon budget (`marathon.py`)
+
+Human drivers took an Earth Rover Mini+ from UC Berkeley to Stanford, about 50 miles in seven legs, by remote control in 29 h 38 min (FrodoBots, Sept 2026). The SDK README gives the Mini+ "12 km range per charge, top speed 4 km/h". Put together:
+
+```
+python marathon.py budget
+```
+
+- 50 miles is 80.5 km. At its top speed a Mini+ needs at least **20.1 h** of driving, so the human time can hold at most **9.5 h** of stops, however the legs and the charging were arranged.
+- With no stops at all, beating the human time needs **0.754 m/s** made good: **68%** of the top speed, held for 80 km. At the pilot's default cruise of 0.6 a Mini+ can't reach that even if it never slows down.
+- Seven legs of **11.5 km** on a **12 km** charge leave about **4%** for anything driven beyond the route: detours, re-plans, back-up moves, weaving around obstacles. A pilot whose path is more than about **1.04 times** the route would run out of battery before the end of a leg, if the 12 km holds at its speed.
+
+```
+python marathon.py route check.json      # a saved --check-route summary against one charge
+python marathon.py pace summary.json     # pace_study.py's summary.json against the budget
+```
+
+`route` gives the planned route's share of a charge, the metres to spare and its detour against straight lines; a route with legs that have no walkable route is flagged as a lower bound. `pace` takes the simulated marathon-pace study and, for each cruise, gives the hours of driving the 80.5 km would take at its median speed made good, the stops that leaves, and whether its median path ratio fits in a charge. `--range-km` and `--top-kmh` change the rover's figures.
+
+Limits: the 12 km and 4 km/h are the README's figures, not measurements. How far a charge really goes depends on speed, slope, surface and temperature, and the pilot doesn't log battery use yet. Whether the 29 h 38 min includes the time between legs isn't published; if it does, the humans drove faster than 0.754 m/s.
 
 ## Front camera (`free_space.py`, experimental)
 
@@ -287,6 +309,7 @@ Map data © [OpenStreetMap contributors](https://www.openstreetmap.org/copyright
 - `/data` `accels` rows are `[x, y, z, ...]` in g (or m/s²), and the rover starts the mission upright. If the log shows `tipped` while the rover is plainly upright, look at the logged angle; `--tip-angle 0` turns the check off.
 - The front camera's field of view, height and tilt (`--camera-*`), if `--vision` is tried. A wrong tilt makes obstacles look nearer or farther than they are. Watch `clear_m` in the log on the first runs.
 - OSM sidewalks are mapped well enough in the mission's area. Where they aren't, roads stand in for them.
+- A Mini+ charge covers 12 km at the cruise you choose (`marathon.py` assumes it). Note `/data` `battery` against distance on the first long run.
 
 ## Not done yet
 
@@ -295,11 +318,13 @@ Map data © [OpenStreetMap contributors](https://www.openstreetmap.org/copyright
 - The steering for a real rover comes from simulation. It still has to be checked on a real rover.
 - Wheel RPMs or the gyroscope could carry the position and heading between GPS fixes. Not tried yet.
 - How noisy and how fast-drifting a real rover's GPS is: measurement queued. With fast-drifting error the compass bias is learned worst; v0.9.2's residual gate and weighting are the first candidates, and their study is queued. A bias fit that uses the wheels or the gyroscope may be the next gain.
+- Battery: the pilot doesn't log `/data` `battery` against distance yet, so the 12 km range per charge is the README's figure, not a measured one.
+- Marathon pace on a Mini+ (its 4 km/h top speed, and an orientation that arrives only every 2 s): a simulation study is running.
 
 ## Tests
 
 ```
-python -m unittest test_rover_pilot test_rover_defaults test_steering_defaults test_telemetry test_tip_and_bias test_calibrate test_calibrate_real test_route_planner test_free_space test_free_space_skip test_vision_settings test_frodo_motion test_frodo_frames test_gps_lag test_gain_study test_gps_noise_study -v
+python -m unittest test_rover_pilot test_rover_defaults test_steering_defaults test_telemetry test_tip_and_bias test_calibrate test_calibrate_real test_route_planner test_free_space test_free_space_skip test_vision_settings test_frodo_motion test_frodo_frames test_gps_lag test_gain_study test_gps_noise_study test_marathon -v
 ```
 
 The tests cover:
@@ -329,6 +354,7 @@ The tests cover:
 - late GPS: the compensator's offsets (straight, stopped and reversing, stale fixes, unknown heading), the simulator's GPS delay keeping its random sequence, zero lag being exactly the plain pilot, the corrected position running ahead of the fix, and `--sim-real --gps-lag 1.5` flying the demo
 - `gain_study.py`: the grid, the baseline being the simulator's steering, the real-like profiles, the sign test, picking the best setting, flying the demo, and the command line's outputs
 - `gps_noise_study.py`: the drifting error keeping its size and correlation, zero correlation being independent noise, zero correlation time being exactly the plain simulator, drifting error moving slowly while the rover stands still, flying the demo with 1 s and 2 s fixes and recording how far the rover truly was at each credit, the bias-fit variants naming real settings and flying drifting GPS, the summary and verdicts, and the command line's outputs
+- `marathon.py`: the human benchmark (80.5 km, 29 h 38 min, 0.754 m/s), what it asks of a Mini+ (20.1 h of driving at least, 9.5 h of stops at most, 68% of top speed, a path at most 1.044 times the route on a 12 km charge), other top speeds and ranges, a route that fits a charge, one too long and one with unrouted legs, the pace study's rows against the budget, and the command line on saved files
 
 ## License
 
