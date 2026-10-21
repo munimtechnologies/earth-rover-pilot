@@ -19,6 +19,13 @@ DeadReckoner does that inside the pilot:
   one. When the compass says the rover has turned more than `turn_deg` since,
   the course is turned by as much; before there is a course, the pilot's
   heading is used. With `use_course` off, the pilot's heading is always used.
+- With `use_course` off and `course_hold_s` above 0 (default 0: off), a fix
+  that brings a fresh course is followed along that course for
+  `course_hold_s` from when the rover was there; right after a fix the GPS
+  course beat the live compass on FrodoBots-2K (frodo_blend.py). Then the
+  heading takes over; with `fade`, the difference at the switch fades out
+  over another `course_hold_s`. position() follows a changing direction in
+  steps between calls, so the pilot calls it every tick.
 - A fix shows where the rover was `gps_lag_s` earlier (1.5 s on the recorded
   rides), so it is compared with the estimate for that time, and the estimate
   is moved `gain` of the way to it (1 = start again from every fix). A fix
@@ -39,7 +46,7 @@ import bisect
 import collections
 import math
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 M_PER_DEG = 6371000.0 * math.pi / 180.0
 # Metres per second per wheel RPM: the wheel's circumference over 60 s.
@@ -63,7 +70,8 @@ class DeadReckoner:
                  learn_scale=True, trust_after=2, max_s=30.0, hold_s=3.0,
                  use_course=True, course_s=3.0, course_tol_s=1.5, min_course_m=1.0,
                  turn_deg=30.0, scale_s=20.0, scale_tol_s=2.0, scale_min_m=5.0,
-                 straight_deg=15.0, scale_range=(0.5, 2.0), reset_m=15.0):
+                 straight_deg=15.0, scale_range=(0.5, 2.0), reset_m=15.0,
+                 course_hold_s=0.0, fade=True):
         self.prior = float(mps_per_rpm)
         self.mps_per_rpm = self.prior
         self.gps_lag_s = gps_lag_s
@@ -83,6 +91,8 @@ class DeadReckoner:
         self.straight_deg = straight_deg
         self.scale_range = scale_range
         self.reset_m = reset_m
+        self.course_hold_s = float(course_hold_s)
+        self.fade = fade
         self.keep_s = max_s + gps_lag_s + scale_s + scale_tol_s + 5.0
         self.fixes = 0
         self.resets = 0
@@ -99,6 +109,8 @@ class DeadReckoner:
         self._anchor = None  # (t, east, north): the estimate at time t
         self._dir = None     # course the estimate moves on from the anchor
         self._course = None  # (course_deg, compass when it was measured)
+        self._hold = None    # (time the hold ends, the fresh course held until then)
+        self._shift = None   # heading's shift onto the held course at the switch
         self._heading = None
         self._fix_t = None
 
@@ -195,7 +207,10 @@ class DeadReckoner:
                 g = 1.0
                 self.resets += 1
             self._anchor = (tf, pe + g * de, pn + g * dn)
-        self._dir = self._direction()
+        self._hold = self._shift = None
+        if self.course_hold_s > 0 and not self.use_course and course is not None:
+            self._hold = (tf + self.course_hold_s, course[0])
+        self._dir = self._direction(tf)
         self._fix_t = t
 
     def _prune(self, t):
@@ -263,7 +278,7 @@ class DeadReckoner:
     def trusted(self):
         return not self.learn_scale or self.scale_samples >= self.trust_after
 
-    def _direction(self):
+    def _direction(self, t=None):
         if self.use_course and self._course is not None:
             course, then = self._course
             now = self._compass[-1][1] if self._compass else None
@@ -272,6 +287,16 @@ class DeadReckoner:
                 if abs(turn) > self.turn_deg:
                     return (course + turn) % 360.0
             return course
+        if self._hold is not None and t is not None:
+            until, course = self._hold
+            if t < until:
+                return course
+            if self.fade and self._heading is not None:
+                if self._shift is None:  # the first look after the switch
+                    self._shift = wrap180(course - self._heading)
+                f = 1.0 - (t - until) / self.course_hold_s
+                if f > 0:
+                    return (self._heading + f * self._shift) % 360.0
         return self._heading
 
     def _at(self, t):
@@ -290,7 +315,12 @@ class DeadReckoner:
             return None
         if not self.trusted:
             return None
-        d = self._direction()
+        if self._hold is not None and self._anchor[0] < self._hold[0] <= t:
+            # The hold ended since the last look: follow the course up to the switch.
+            e, n = self._at(self._hold[0])
+            self._anchor = (self._hold[0], e, n)
+            self._dir = self._direction(self._hold[0])
+        d = self._direction(t)
         if d != self._dir:  # turned: carry on from here on the new course
             e, n = self._at(t)
             self._anchor, self._dir = (t, e, n), d
