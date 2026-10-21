@@ -33,6 +33,11 @@ What it adds over a plain bearing-follower:
 - Optionally, a late GPS fix is moved forward by the driving commanded since
   it was taken (--gps-lag); on the FrodoBots-2K rides the GPS runs about
   1.5 s behind the wheels.
+- On a real rover the position is carried from the last GPS fix by the wheel
+  RPMs along the compass-corrected heading (dead_reckon.py; --no-dead-reckon
+  turns it off, --dead-reckon turns it on in the simulator), and the rover
+  drives on through GPS dropouts of up to 30 s. The wheels are used only once
+  straight stretches have checked them against the GPS.
 - The SDK keeps serving the last telemetry it got, so a rover whose link has
   dropped still shows a GPS fix. When no new telemetry has come in for 5 s
   (the /data timestamp stays the same, or GET /status says so), the rover is
@@ -63,7 +68,7 @@ import time
 import urllib.error
 import urllib.request
 
-__version__ = "0.9.2"
+__version__ = "0.10.0"
 
 EARTH_RADIUS_M = 6371000.0
 M_PER_DEG = EARTH_RADIUS_M * math.pi / 180.0
@@ -108,6 +113,16 @@ ROVER_DEFAULTS = {"angular_right_positive": False}
 # 9 mission/turn-rate groups (sign test p < 0.05 in each, about 3% overall) and
 # needed a third fewer back-up moves; nothing was lost (FINDINGS-frodobots-2k.md).
 ROVER_STEERING = {"max_angular": 1.0, "turn_in_place_deg": 90.0}
+# pace_study.py (v0.10.0): on a Mini+ stand-in, cruise 0.6 never made the human
+# Berkeley-Stanford pace (0.754 m/s), 0.8 made it on every course with about 3.9 h
+# left for stops, and 1.0 widened corner-heavy paths to the battery limit.
+# Simulated only: measure range at this cruise before a real marathon.
+MARATHON = dict(ROVER_STEERING, cruise=0.8)
+# dead_reckon_study.py (v0.10.0): carrying the position along the pilot's
+# compass-corrected heading, rather than the last GPS course, gave the smallest
+# position error and the fastest missions on every simulated rover and GPS
+# error model tried. Simulated only.
+DEAD_RECKON = {"use_course": False}
 
 
 # --- geometry -------------------------------------------------------------
@@ -424,6 +439,65 @@ class TipWatch:
         return self.tipped
 
 
+class BatteryLog:
+    """How much charge a mission has used and how far it has driven.
+
+    /data `battery` is the charge level; the SDK README's examples read 100
+    and 87 and give no unit, so it is taken as a percent and values outside
+    0-100 are left out. Distance is summed from GPS fixes, counting a step only
+    once the rover is `step_m` from the last point counted, so GPS jitter while
+    it stands still doesn't add up (bends are cut slightly short). m_per_pct is
+    metres driven per percent used, given once at least `min_used_pct` has gone
+    (the level comes in whole percents); range_left_m spreads it over the
+    charge left. A rover that reports no `battery` (the simulator) leaves all
+    of it None except driven_m.
+    """
+
+    def __init__(self, step_m=3.0, min_used_pct=2.0):
+        self.step_m = step_m
+        self.min_used_pct = min_used_pct
+        self.start = None    # first charge level seen
+        self.level = None    # latest charge level
+        self.driven_m = 0.0
+        self._anchor = None  # last fix counted
+
+    def update(self, battery, fix):
+        """Feed one /data reading's `battery` and its parsed (lat, lon) fix or None."""
+        if isinstance(battery, bool):
+            battery = None
+        try:
+            battery = float(battery)
+        except (TypeError, ValueError):
+            battery = None
+        if battery is not None and math.isfinite(battery) and 0.0 <= battery <= 100.0:
+            if self.start is None:
+                self.start = battery
+            self.level = battery
+        if fix is None:
+            return
+        if self._anchor is None:
+            self._anchor = fix
+            return
+        step = haversine_m(self._anchor[0], self._anchor[1], fix[0], fix[1])
+        if step >= self.step_m:
+            self.driven_m += step
+            self._anchor = fix
+
+    def result(self):
+        used = None if self.start is None else self.start - self.level
+        m_per_pct = (self.driven_m / used
+                     if used is not None and used >= self.min_used_pct else None)
+        return {
+            "start_pct": self.start,
+            "end_pct": self.level,
+            "used_pct": None if used is None else round(used, 1),
+            "driven_m": round(self.driven_m, 1),
+            "m_per_pct": None if m_per_pct is None else round(m_per_pct, 1),
+            "range_left_m": (None if m_per_pct is None
+                             else round(m_per_pct * self.level)),
+        }
+
+
 class LagCompensator:
     """Moves a late GPS fix forward by the driving commanded since it was taken.
 
@@ -623,14 +697,18 @@ class Steering:
         return clamp(linear), angular
 
 
-def make_steering(simulate, cruise=0.6, max_angular=None, turn_in_place_deg=None):
-    """The Steering the command line drives with: ROVER_STEERING on a real rover,
-    the class defaults in the simulator, and either overridden by the options given."""
-    kw = {} if simulate else dict(ROVER_STEERING)
+def make_steering(simulate, cruise=None, max_angular=None, turn_in_place_deg=None,
+                  marathon=False):
+    """The Steering the command line drives with: ROVER_STEERING on a real rover
+    or with marathon, the class defaults in the simulator, and either overridden
+    by the options given. cruise defaults to 0.6, or MARATHON's with marathon."""
+    kw = {} if simulate and not marathon else dict(ROVER_STEERING)
     if max_angular is not None:
         kw["max_angular"] = max_angular
     if turn_in_place_deg is not None:
         kw["turn_in_place_deg"] = turn_in_place_deg
+    if cruise is None:
+        cruise = MARATHON["cruise"] if marathon else 0.6
     return Steering(cruise=cruise, **kw)
 
 
@@ -693,6 +771,11 @@ class Pilot:
 
     `tip_angle_deg`: the rover is stopped while its accelerometer shows gravity
     more than this far from where it pointed at the start (TipWatch; 0 = off).
+
+    `dead_reckon`, if given (dead_reckon.DeadReckoner), carries the position
+    from the last GPS fix by the wheels instead of smoothing the fixes, and
+    keeps the rover going through a GPS dropout while it has an estimate
+    (checkpoints are reported only with a fix). Not together with gps_lag_s.
     """
 
     def __init__(self, rover, clock=time.monotonic, sleep=time.sleep,
@@ -702,7 +785,7 @@ class Pilot:
                  replan_m=30.0, replan_s=30.0, vision=None, conventions=None,
                  gps_lag_s=0.0, cmd_latency_s=0.8, speed_mps_at_full=0.79,
                  telemetry_timeout_s=TELEMETRY_TIMEOUT_S, tip_angle_deg=TIP_ANGLE_DEG,
-                 log=None):
+                 dead_reckon=None, log=None):
         self.rover = rover
         self.clock = clock
         self.sleep = sleep
@@ -721,6 +804,10 @@ class Pilot:
         self.conventions = conventions or Conventions()
         self.lag = (LagCompensator(gps_lag_s, cmd_latency_s, speed_mps_at_full)
                     if gps_lag_s > 0 else None)
+        if dead_reckon is not None and self.lag is not None:
+            raise ValueError("use gps_lag_s or dead_reckon, not both")
+        self.dr = dead_reckon
+        self.bridged_s = 0.0  # seconds driven on the wheels' estimate alone
         self.log = log
         self.gps = GpsFilter()
         self.heading = HeadingEstimator()
@@ -730,6 +817,7 @@ class Pilot:
         self.telemetry_stops = 0
         self.tip = TipWatch(tip_angle_deg)
         self.tip_stops = 0
+        self.battery = BatteryLog()
         self.cmd = (0.0, 0.0)
         self.pos = (None, None)
         self.reached = []
@@ -802,7 +890,12 @@ class Pilot:
 
     def _position(self, t):
         """Where the rover is taken to be: the smoothed GPS or, with gps_lag_s,
-        the last fix moved forward by the driving commanded since it was seen."""
+        the last fix moved forward by the driving commanded since it was seen,
+        or with dead_reckon, the wheels' estimate whenever it has one."""
+        if self.dr is not None:
+            pos = self.dr.position(t)
+            if pos is not None:
+                return pos
         if self.lag is None or self.gps.raw is None:
             return self.gps.lat, self.gps.lon
         north, east = self.lag.offset(t, self.gps.raw_t)
@@ -817,7 +910,8 @@ class Pilot:
         leg = {"seq": seq, "elapsed_s": round(self.clock() - self._leg_t0, 1),
                "straight_m": None if self._leg_m is None else round(self._leg_m, 1),
                "reports": self.reports - self._leg_reports,
-               "recoveries": self.recoveries - self._leg_recoveries}
+               "recoveries": self.recoveries - self._leg_recoveries,
+               "battery_pct": self.battery.level}
         self.legs.append(leg)
         self._log("checkpoint", **leg)
         self._start_leg()
@@ -912,10 +1006,13 @@ class Pilot:
             "calibrations": self.heading.calibrations,
             "telemetry_stops": self.telemetry_stops,
             "tip_stops": self.tip_stops,
+            "battery": self.battery.result(),
             "legs": list(self.legs),
         }
         if self.vision is not None:
             out["vision"] = self.vision.stats()
+        if self.dr is not None:
+            out["dead_reckon"] = dict(self.dr.stats(), bridged_s=round(self.bridged_s, 1))
         return out
 
     def run(self, start=True, timeout_s=3600.0):
@@ -940,13 +1037,25 @@ class Pilot:
                 compass = self.conventions.heading(data.get("orientation"))
                 self.heading.update(tick, new_fix, compass, *self.cmd)
                 self._heading_now = self.heading.heading(compass, tick)
+                if self.dr is not None:
+                    self.dr.wheels(tick, data.get("rpms"))
+                    self.dr.update(tick, new_fix, compass, self._heading_now)
                 stale = self._telemetry_stale(tick)
                 tipped = self._tipped(tick, data.get("accels"))
-                if stale or tipped or not self.gps.has_fix(tick):
+                self.battery.update(data.get("battery"),
+                                    parse_fix(data.get("latitude"), data.get("longitude")))
+                # Through a GPS dropout the wheels' estimate keeps the rover going.
+                bridging = (self.dr is not None and self.gps.lat is not None
+                            and not self.gps.has_fix(tick)
+                            and self.dr.position(tick) is not None)
+                if stale or tipped or not (self.gps.has_fix(tick) or bridging):
                     self._history.clear()
                     self.stop()
                     self._wait(tick)
                     continue
+                if bridging:
+                    self._history.clear()  # the GPS stands still, the rover doesn't
+                    self.bridged_s += self.period
                 seq, target_lat, target_lon = remaining[0]
                 self.pos = self._position(tick)
                 distance = haversine_m(self.pos[0], self.pos[1], target_lat, target_lon)
@@ -955,7 +1064,7 @@ class Pilot:
                                                          target_lat, target_lon))
                 if self._leg_m is None:
                     self._leg_m = distance
-                if distance <= self.report_radius_m and tick >= next_try:
+                if distance <= self.report_radius_m and tick >= next_try and not bridging:
                     if len(remaining) == 1:
                         self._settled_stop()
                     res = self.rover.checkpoint_reached()
@@ -1182,6 +1291,9 @@ class SimRover:
     turns right; `orientation_scale`, `orientation_clockwise` and
     `angular_sign` (-1 turns left) make a rover that doesn't.
     It reports no accelerometer, so the tip watch never fires on it.
+    With `wheel_mps_per_rpm` it reports `rpms` rows like an Earth Rover's
+    ([rpm x 4, timestamp], the left and right wheels at the commanded speed and
+    turn, `wheel_track_m` apart), sent together every `rpm_period_s`.
     """
 
     def __init__(self, checkpoints_m, seed=0, start=(37.8719, -122.2585),
@@ -1190,7 +1302,8 @@ class SimRover:
                  gps_dropout=0.05, compass_error_deg=-25.0, compass_noise_deg=3.0,
                  tolerance_m=15.0, dt=0.1, blocked_until_s=0.0, obstacles=(),
                  rover_radius_m=0.2, obstacle_height_m=1.0, orientation_scale=360.0,
-                 orientation_clockwise=True, angular_sign=1.0, gps_delay_s=0.0):
+                 orientation_clockwise=True, angular_sign=1.0, gps_delay_s=0.0,
+                 wheel_mps_per_rpm=None, wheel_track_m=0.2, rpm_period_s=0.0):
         self.rng = random.Random(seed)
         self.seed = seed
         self.lat0, self.lon0 = start
@@ -1215,6 +1328,12 @@ class SimRover:
         self.orientation_scale = orientation_scale
         self.orientation_clockwise = orientation_clockwise
         self.angular_sign = angular_sign
+        self.wheel_mps_per_rpm = wheel_mps_per_rpm
+        self.wheel_track_m = wheel_track_m
+        self.rpm_period_s = rpm_period_s
+        self.rpms = []  # the wheel rows data() serves
+        self._rpm_rows = []
+        self._rpm_sent_t = 0.0
         self.contacts = 0  # steps on which an obstacle stopped the rover
         self.min_gap = math.inf  # closest the rover's centre came to an obstacle's edge
         self.travelled = 0.0  # metres driven
@@ -1280,10 +1399,25 @@ class SimRover:
         for on, oe, r in self.obstacles:
             self.min_gap = min(self.min_gap, math.hypot(self.north - on, self.east - oe) - r)
         self.t += self.dt
+        if self.wheel_mps_per_rpm:
+            self._wheel_row(linear, angular)
         if self.gps_delay_s > 0:
             self._track.append((self.t, self.north, self.east))
         if self.t >= self._next_gps_t - 1e-9:
             self._sample_gps()
+
+    def _wheel_row(self, linear, angular):
+        """Record the wheels' RPM now; send the rows every rpm_period_s."""
+        v = linear * self.max_speed_mps
+        # Turning right (clockwise) runs the left wheels faster.
+        w = (math.radians(self.angular_sign * angular * self.max_yaw_dps)
+             * self.wheel_track_m / 2.0)
+        left = round((v + w) / self.wheel_mps_per_rpm, 2)
+        right = round((v - w) / self.wheel_mps_per_rpm, 2)
+        self._rpm_rows.append([left, right, left, right, round(self.t, 3)])
+        if self.t - self._rpm_sent_t >= self.rpm_period_s - 1e-9:
+            self.rpms, self._rpm_rows = self._rpm_rows, []
+            self._rpm_sent_t = self.t
 
     # clock/sleep replace time.monotonic/time.sleep for the Pilot
     def clock(self):
@@ -1305,8 +1439,11 @@ class SimRover:
             compass = -compass % 360.0
         if self.orientation_scale != 360.0:
             compass = compass * self.orientation_scale / 360.0
-        return {"latitude": self.gps[0], "longitude": self.gps[1], "orientation": compass,
-                "gps_signal": 0 if self.gps[0] == NO_FIX else 30, "timestamp": self.t}
+        out = {"latitude": self.gps[0], "longitude": self.gps[1], "orientation": compass,
+               "gps_signal": 0 if self.gps[0] == NO_FIX else 30, "timestamp": self.t}
+        if self.wheel_mps_per_rpm:
+            out["rpms"] = [list(r) for r in self.rpms]
+        return out
 
     def camera_frame(self, camera):
         """What the front camera sees now: grey ground, green hedges, a little noise."""
@@ -1349,6 +1486,15 @@ class SimRover:
 
 # --- command line ---------------------------------------------------------
 
+def use_dead_reckoning(dead_reckon, simulate, gps_lag):
+    """--dead-reckon / --no-dead-reckon if given; otherwise on for a real rover,
+    unless --gps-lag asks for the other correction, and off in the simulator
+    (dead_reckon_study.py)."""
+    if dead_reckon is not None:
+        return dead_reckon
+    return not simulate and gps_lag <= 0
+
+
 def main(argv=None):
     p = argparse.ArgumentParser(
         description="GPS waypoint pilot for the FrodoBots Earth Rover SDK.")
@@ -1369,19 +1515,34 @@ def main(argv=None):
                    help="print the missions the SDK lists for this bot (GET /missions) and exit")
     p.add_argument("--no-start", action="store_true",
                    help="don't call /start-mission (resume a mission already running)")
-    p.add_argument("--cruise", type=float, default=0.6, help="cruise linear command, 0-1")
+    p.add_argument("--cruise", type=float, default=None,
+                   help="cruise linear command, 0-1 (default 0.6, or 0.8 with --marathon)")
     p.add_argument("--max-angular", type=float, default=None,
                    help="largest angular command, 0-1 (default: 1.0 on a real rover, "
                         "0.6 in the simulator)")
     p.add_argument("--turn-in-place", type=float, default=None,
                    help="turn in place when the heading error is above this many degrees "
                         "(default: 90 on a real rover, 60 in the simulator)")
+    p.add_argument("--marathon", action="store_true",
+                   help="long-mission preset from pace_study.py: cruise 0.8 and the real-rover "
+                        "steering, also in the simulator; measure range at this cruise first")
     p.add_argument("--report-radius", type=float, default=10.0,
                    help="report a checkpoint from this many metres (server tolerance is 15)")
     p.add_argument("--gps-lag", type=float, default=0.0,
                    help="seconds the GPS runs behind the rover (FrodoBots-2K: about 1.5); "
                         "each fix is moved forward by the driving commanded since, assuming "
                         "0.79 m/s at full linear and commands 0.8 s late (0 = off)")
+    p.add_argument("--dead-reckon", dest="dead_reckon", action="store_true", default=None,
+                   help="carry the position from the last GPS fix by the wheel RPMs along "
+                        "the compass-corrected heading and drive on through GPS dropouts of "
+                        "up to 30 s; used once straight stretches have checked the wheels "
+                        "against the GPS (default: on for a real rover, off in the simulator)")
+    p.add_argument("--no-dead-reckon", dest="dead_reckon", action="store_false",
+                   help="steer on the smoothed GPS fixes alone")
+    p.add_argument("--mps-per-rpm", type=float, default=None,
+                   help="with --dead-reckon, metres per second per wheel RPM to start from "
+                        "(default: the Earth Rover Mini+'s 95 mm wheels, 0.00497); it is "
+                        "learned while driving")
     p.add_argument("--telemetry-timeout", type=float, default=TELEMETRY_TIMEOUT_S,
                    help="stop the rover while no new telemetry has come in for this many "
                         "seconds: the /data timestamp stays the same, or GET /status gives a "
@@ -1425,6 +1586,9 @@ def main(argv=None):
     p.add_argument("--log", help="append a JSON-lines log of the run to this file")
     p.add_argument("--version", action="version", version=__version__)
     args = p.parse_args(argv)
+    if args.dead_reckon and args.gps_lag > 0:
+        p.error("--dead-reckon and --gps-lag don't go together")
+    args.dead_reckon = use_dead_reckoning(args.dead_reckon, args.simulate, args.gps_lag)
 
     if args.list_missions:
         if args.simulate:
@@ -1473,13 +1637,17 @@ def main(argv=None):
             log_file.write(json.dumps(record) + "\n")
 
     try:
-        steering = make_steering(args.simulate, args.cruise, args.max_angular, args.turn_in_place)
+        steering = make_steering(args.simulate, args.cruise, args.max_angular, args.turn_in_place,
+                                 marathon=args.marathon)
         if args.simulate:
             sim_kw = {}
             if args.sim_quirks:
                 sim_kw.update(SIM_QUIRKS)
             if args.sim_real:
                 sim_kw.update(SIM_REAL)
+            if args.dead_reckon:
+                import dead_reckon
+                sim_kw["wheel_mps_per_rpm"] = dead_reckon.MINI_PLUS_MPS_PER_RPM
             rover = SimRover(DEMO_MISSION, seed=args.seed,
                              obstacles=DEMO_OBSTACLES if args.obstacles else (), **sim_kw)
             clock, sleep = rover.clock, rover.sleep
@@ -1507,11 +1675,18 @@ def main(argv=None):
         else:
             vision = (make_vision(source, camera, args.simulate, args.vision_plain)
                       if camera else None)
+            reckoner = None
+            if args.dead_reckon:
+                import dead_reckon
+                dr_kw = dict(DEAD_RECKON)
+                if args.mps_per_rpm is not None:
+                    dr_kw["mps_per_rpm"] = args.mps_per_rpm
+                reckoner = dead_reckon.DeadReckoner(**dr_kw)
             pilot = Pilot(rover, clock=clock, sleep=sleep, steering=steering,
                           report_radius_m=args.report_radius, planner=planner, vision=vision,
                           conventions=conventions, gps_lag_s=args.gps_lag,
                           telemetry_timeout_s=args.telemetry_timeout,
-                          tip_angle_deg=args.tip_angle, log=log)
+                          tip_angle_deg=args.tip_angle, dead_reckon=reckoner, log=log)
             result = pilot.run(start=not args.no_start, timeout_s=args.timeout)
             if args.simulate and args.obstacles:
                 result["sim_contacts"] = rover.contacts

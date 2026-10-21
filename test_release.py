@@ -1,0 +1,93 @@
+# Copyright 2026 Munim, Inc. Licensed under the Apache License, Version 2.0.
+"""0.10.0 release settings: dead reckoning on by default for a real rover, along
+the compass-corrected heading, as dead_reckon_study.py's pre-stated rule says."""
+import contextlib
+import io
+import unittest
+from unittest import mock
+
+import dead_reckon as dm
+import rover_pilot as rp
+
+
+def run_main(argv):
+    out = io.StringIO()
+    with contextlib.redirect_stdout(out):
+        code = rp.main(argv)
+    return code, out.getvalue()
+
+
+class Recorder(dm.DeadReckoner):
+    """DeadReckoner that remembers the settings main() built it with."""
+    made = []
+
+    def __init__(self, **kw):
+        Recorder.made.append(kw)
+        super().__init__(**kw)
+
+
+class DefaultTest(unittest.TestCase):
+    def test_version(self):
+        self.assertEqual(rp.__version__, "0.10.0")
+
+    def test_study_setting(self):
+        self.assertEqual(rp.DEAD_RECKON, {"use_course": False})
+
+    def test_real_rover_on_by_default(self):
+        self.assertTrue(rp.use_dead_reckoning(None, simulate=False, gps_lag=0.0))
+
+    def test_simulator_off_by_default(self):
+        self.assertFalse(rp.use_dead_reckoning(None, simulate=True, gps_lag=0.0))
+
+    def test_gps_lag_keeps_it_off(self):
+        self.assertFalse(rp.use_dead_reckoning(None, simulate=False, gps_lag=1.5))
+
+    def test_explicit_choice_wins(self):
+        self.assertFalse(rp.use_dead_reckoning(False, simulate=False, gps_lag=0.0))
+        self.assertTrue(rp.use_dead_reckoning(True, simulate=True, gps_lag=0.0))
+
+
+class CommandLineTest(unittest.TestCase):
+    def setUp(self):
+        Recorder.made = []
+
+    def test_simulator_default_has_no_dead_reckoning(self):
+        code, text = run_main(["--simulate", "--seed", "2"])
+        self.assertEqual(code, 0, text[-500:])
+        self.assertNotIn('"dead_reckon"', text)
+
+    def test_no_dead_reckon_flag(self):
+        code, text = run_main(["--simulate", "--no-dead-reckon", "--seed", "2"])
+        self.assertEqual(code, 0, text[-500:])
+        self.assertNotIn('"dead_reckon"', text)
+
+    def test_dead_reckon_uses_the_heading(self):
+        with mock.patch.object(dm, "DeadReckoner", Recorder):
+            code, text = run_main(["--simulate", "--sim-real", "--dead-reckon", "--seed", "2"])
+        self.assertEqual(code, 0, text[-500:])
+        self.assertEqual(Recorder.made, [{"use_course": False}])
+        self.assertIn('"dead_reckon"', text)
+
+    def test_mps_per_rpm_passed_on(self):
+        with mock.patch.object(dm, "DeadReckoner", Recorder):
+            code, text = run_main(["--simulate", "--sim-real", "--dead-reckon",
+                                   "--mps-per-rpm", "0.00668", "--seed", "2"])
+        self.assertEqual(code, 0, text[-500:])
+        self.assertEqual(Recorder.made, [{"use_course": False, "mps_per_rpm": 0.00668}])
+
+    def test_gps_lag_alone_still_allowed(self):
+        code, text = run_main(["--simulate", "--sim-real", "--gps-lag", "1.5", "--seed", "2"])
+        self.assertEqual(code, 0, text[-500:])
+        self.assertNotIn('"dead_reckon"', text)
+
+    def test_help_mentions_the_default(self):
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            with self.assertRaises(SystemExit):
+                rp.main(["--help"])
+        self.assertIn("--no-dead-reckon", out.getvalue())
+        self.assertIn("on for a real rover", " ".join(out.getvalue().split()))
+
+
+if __name__ == "__main__":
+    unittest.main()
