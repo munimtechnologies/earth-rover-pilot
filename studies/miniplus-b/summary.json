@@ -1,0 +1,702 @@
+{
+ "version": "0.1.0",
+ "elapsed_s": 8.7,
+ "datasets": [
+  {
+   "id": "AmitGMU/earthrover-navigation_20260610_165303",
+   "robot_type": "earthrover_mini_plus",
+   "fps": 10,
+   "license": "apache-2.0",
+   "episodes": 1,
+   "frames": 600,
+   "live_fields": [
+    "gyro_x",
+    "gyro_y",
+    "gyro_z",
+    "orientation",
+    "rpm0",
+    "rpm1",
+    "rpm2",
+    "rpm3",
+    "speed"
+   ]
+  },
+  {
+   "id": "anirudhgudi/frodobots-lerobot-dataset",
+   "robot_type": "earth_rover_mini_plus",
+   "fps": 2,
+   "license": "apache-2.0",
+   "episodes": 5,
+   "frames": 1814,
+   "live_fields": [
+    "orientation"
+   ]
+  },
+  {
+   "id": "cagataydev/scout-earth-rover-mini-20260616-053232",
+   "robot_type": "earth-rover-mini",
+   "fps": 4,
+   "license": "apache-2.0",
+   "episodes": 3,
+   "frames": 4176,
+   "live_fields": [
+    "orientation",
+    "speed"
+   ]
+  },
+  {
+   "id": "cagataydev/scout-earthrover-ecot",
+   "robot_type": "earthrover_mini_plus",
+   "fps": 10,
+   "license": "mit",
+   "episodes": 30,
+   "frames": 11762,
+   "live_fields": [
+    "orientation"
+   ]
+  },
+  {
+   "id": "dkuzmenko/earth-rover-mini-test-4",
+   "robot_type": "earthrover_mini_plus",
+   "fps": 10,
+   "license": "apache-2.0",
+   "episodes": 4,
+   "frames": 2400,
+   "live_fields": []
+  },
+  {
+   "id": "lilkm/earthrover-navigation",
+   "robot_type": "earthrover_mini_plus",
+   "fps": 10,
+   "license": "apache-2.0",
+   "episodes": 2,
+   "frames": 595,
+   "live_fields": [
+    "orientation"
+   ]
+  },
+  {
+   "id": "lilkm/earthrover-navigation-low-level-sdk",
+   "robot_type": "earthrover_mini_plus",
+   "fps": 30,
+   "license": "apache-2.0",
+   "episodes": 1,
+   "frames": 178,
+   "live_fields": [
+    "gyro_x",
+    "gyro_y",
+    "gyro_z"
+   ]
+  },
+  {
+   "id": "lilkm/earthrover-test",
+   "robot_type": "earthrover_mini_plus",
+   "fps": 10,
+   "license": "apache-2.0",
+   "episodes": 2,
+   "frames": 755,
+   "live_fields": [
+    "gyro_x",
+    "gyro_y",
+    "gyro_z",
+    "orientation",
+    "rpm0",
+    "rpm1",
+    "rpm2",
+    "rpm3",
+    "speed"
+   ]
+  },
+  {
+   "id": "lilkm/earthrover-test-2",
+   "robot_type": "earthrover_mini_plus",
+   "fps": 10,
+   "license": "apache-2.0",
+   "episodes": 2,
+   "frames": 328,
+   "live_fields": [
+    "orientation"
+   ]
+  },
+  {
+   "id": "lilkm/earthrover-test-3",
+   "robot_type": "earthrover_mini_plus",
+   "fps": 10,
+   "license": "apache-2.0",
+   "episodes": 2,
+   "frames": 321,
+   "live_fields": [
+    "orientation"
+   ]
+  }
+ ],
+ "skipped": 3,
+ "results": {
+  "pooled": {
+   "episodes": 52,
+   "frames": 22929,
+   "gps": {
+    "frames": 20937,
+    "valid_share": 0.0
+   },
+   "refresh_s": {
+    "median": 0.5,
+    "n": 3827
+   },
+   "orientation_change_s": {
+    "median": 0.5,
+    "n": 3567
+   },
+   "turns": {
+    "windows": 1643,
+    "qualifying": 77,
+    "clockwise": 52,
+    "counter_clockwise": 25,
+    "share_clockwise": 0.675,
+    "deg_per_s_per_unit": 48.3,
+    "slope_deg_per_s_per_unit": -22.59
+   },
+   "gyroscope": {
+    "gyro_x": {
+     "n": 65,
+     "r_with_orientation_rate": -0.615,
+     "over_orientation_rate": -0.058
+    },
+    "gyro_y": {
+     "n": 65,
+     "r_with_orientation_rate": -0.345,
+     "over_orientation_rate": -0.031
+    },
+    "gyro_z": {
+     "n": 65,
+     "r_with_orientation_rate": -0.106,
+     "over_orientation_rate": -0.001
+    }
+   },
+   "wheels": {
+    "moving": 777,
+    "duplicated": 406,
+    "forward": 19,
+    "forward_all_nonzero": 17,
+    "forward_one_sign": 17,
+    "forward_all_positive": 17,
+    "left": 68,
+    "left_rpm1_higher": 64,
+    "left_rpm0_higher": 4,
+    "right": 33,
+    "right_rpm1_higher": 1,
+    "right_rpm0_higher": 32,
+    "duplicated_share": 0.523,
+    "forward_one_sign_share": 1.0,
+    "left_rpm1_higher_share": 0.941,
+    "right_rpm0_higher_share": 0.97,
+    "speed_ratio": {
+     "median": 0.947,
+     "n": 289,
+     "q1": 0.945,
+     "q3": 0.948
+    }
+   },
+   "datasets": 10,
+   "turn_datasets": 3
+  },
+  "per_dataset": {
+   "AmitGMU/earthrover-navigation_20260610_165303": {
+    "episodes": 1,
+    "frames": 600,
+    "gps": {
+     "frames": 600,
+     "valid_share": 0.0
+    },
+    "refresh_s": {
+     "median": 0.3,
+     "n": 54
+    },
+    "orientation_change_s": {
+     "median": 0.35,
+     "n": 48
+    },
+    "turns": {
+     "windows": 29,
+     "qualifying": 0,
+     "clockwise": 0,
+     "counter_clockwise": 0,
+     "share_clockwise": null,
+     "deg_per_s_per_unit": null,
+     "slope_deg_per_s_per_unit": -26.91
+    },
+    "gyroscope": {
+     "gyro_x": {
+      "n": 29,
+      "r_with_orientation_rate": -0.474,
+      "over_orientation_rate": -0.164
+     },
+     "gyro_y": {
+      "n": 29,
+      "r_with_orientation_rate": -0.257,
+      "over_orientation_rate": -0.036
+     },
+     "gyro_z": {
+      "n": 29,
+      "r_with_orientation_rate": -0.036,
+      "over_orientation_rate": 0.011
+     }
+    },
+    "wheels": {
+     "moving": 371,
+     "duplicated": 0,
+     "forward": 2,
+     "forward_all_nonzero": 0,
+     "forward_one_sign": 0,
+     "forward_all_positive": 0,
+     "left": 5,
+     "left_rpm1_higher": 5,
+     "left_rpm0_higher": 0,
+     "right": 0,
+     "right_rpm1_higher": 0,
+     "right_rpm0_higher": 0,
+     "duplicated_share": 0.0,
+     "forward_one_sign_share": null,
+     "left_rpm1_higher_share": 1.0,
+     "right_rpm0_higher_share": null,
+     "speed_ratio": {
+      "median": 1.316,
+      "n": 1,
+      "q1": null,
+      "q3": null
+     }
+    }
+   },
+   "anirudhgudi/frodobots-lerobot-dataset": {
+    "episodes": 5,
+    "frames": 1814,
+    "gps": {
+     "frames": 0,
+     "valid_share": null
+    },
+    "refresh_s": {
+     "median": 0.5,
+     "n": 1803
+    },
+    "orientation_change_s": {
+     "median": 0.5,
+     "n": 1803
+    },
+    "turns": {
+     "windows": 450,
+     "qualifying": 0,
+     "clockwise": 0,
+     "counter_clockwise": 0,
+     "share_clockwise": null,
+     "deg_per_s_per_unit": null,
+     "slope_deg_per_s_per_unit": 0.39
+    },
+    "gyroscope": {
+     "gyro_x": {
+      "n": 0,
+      "r_with_orientation_rate": null,
+      "over_orientation_rate": null
+     },
+     "gyro_y": {
+      "n": 0,
+      "r_with_orientation_rate": null,
+      "over_orientation_rate": null
+     },
+     "gyro_z": {
+      "n": 0,
+      "r_with_orientation_rate": null,
+      "over_orientation_rate": null
+     }
+    },
+    "wheels": null
+   },
+   "cagataydev/scout-earth-rover-mini-20260616-053232": {
+    "episodes": 3,
+    "frames": 4176,
+    "gps": {
+     "frames": 4176,
+     "valid_share": 0.0
+    },
+    "refresh_s": {
+     "median": 0.5,
+     "n": 587
+    },
+    "orientation_change_s": {
+     "median": 0.5,
+     "n": 568
+    },
+    "turns": {
+     "windows": 520,
+     "qualifying": 29,
+     "clockwise": 24,
+     "counter_clockwise": 5,
+     "share_clockwise": 0.828,
+     "deg_per_s_per_unit": 38.6,
+     "slope_deg_per_s_per_unit": -40.96
+    },
+    "gyroscope": {
+     "gyro_x": {
+      "n": 0,
+      "r_with_orientation_rate": null,
+      "over_orientation_rate": null
+     },
+     "gyro_y": {
+      "n": 0,
+      "r_with_orientation_rate": null,
+      "over_orientation_rate": null
+     },
+     "gyro_z": {
+      "n": 0,
+      "r_with_orientation_rate": null,
+      "over_orientation_rate": null
+     }
+    },
+    "wheels": null
+   },
+   "cagataydev/scout-earthrover-ecot": {
+    "episodes": 30,
+    "frames": 11762,
+    "gps": {
+     "frames": 11762,
+     "valid_share": 0.0
+    },
+    "refresh_s": {
+     "median": 0.5,
+     "n": 901
+    },
+    "orientation_change_s": {
+     "median": 0.5,
+     "n": 901
+    },
+    "turns": {
+     "windows": 565,
+     "qualifying": 37,
+     "clockwise": 22,
+     "counter_clockwise": 15,
+     "share_clockwise": 0.595,
+     "deg_per_s_per_unit": 53.1,
+     "slope_deg_per_s_per_unit": -14.17
+    },
+    "gyroscope": {
+     "gyro_x": {
+      "n": 0,
+      "r_with_orientation_rate": null,
+      "over_orientation_rate": null
+     },
+     "gyro_y": {
+      "n": 0,
+      "r_with_orientation_rate": null,
+      "over_orientation_rate": null
+     },
+     "gyro_z": {
+      "n": 0,
+      "r_with_orientation_rate": null,
+      "over_orientation_rate": null
+     }
+    },
+    "wheels": null
+   },
+   "dkuzmenko/earth-rover-mini-test-4": {
+    "episodes": 4,
+    "frames": 2400,
+    "gps": {
+     "frames": 2400,
+     "valid_share": 0.0
+    },
+    "refresh_s": {
+     "median": null,
+     "n": 0
+    },
+    "orientation_change_s": {
+     "median": null,
+     "n": 0
+    },
+    "turns": {
+     "windows": 0,
+     "qualifying": 0,
+     "clockwise": 0,
+     "counter_clockwise": 0,
+     "share_clockwise": null,
+     "deg_per_s_per_unit": null,
+     "slope_deg_per_s_per_unit": null
+    },
+    "gyroscope": {
+     "gyro_x": {
+      "n": 0,
+      "r_with_orientation_rate": null,
+      "over_orientation_rate": null
+     },
+     "gyro_y": {
+      "n": 0,
+      "r_with_orientation_rate": null,
+      "over_orientation_rate": null
+     },
+     "gyro_z": {
+      "n": 0,
+      "r_with_orientation_rate": null,
+      "over_orientation_rate": null
+     }
+    },
+    "wheels": null
+   },
+   "lilkm/earthrover-navigation": {
+    "episodes": 2,
+    "frames": 595,
+    "gps": {
+     "frames": 595,
+     "valid_share": 0.0
+    },
+    "refresh_s": {
+     "median": 0.6,
+     "n": 11
+    },
+    "orientation_change_s": {
+     "median": 0.6,
+     "n": 11
+    },
+    "turns": {
+     "windows": 14,
+     "qualifying": 0,
+     "clockwise": 0,
+     "counter_clockwise": 0,
+     "share_clockwise": null,
+     "deg_per_s_per_unit": null,
+     "slope_deg_per_s_per_unit": null
+    },
+    "gyroscope": {
+     "gyro_x": {
+      "n": 0,
+      "r_with_orientation_rate": null,
+      "over_orientation_rate": null
+     },
+     "gyro_y": {
+      "n": 0,
+      "r_with_orientation_rate": null,
+      "over_orientation_rate": null
+     },
+     "gyro_z": {
+      "n": 0,
+      "r_with_orientation_rate": null,
+      "over_orientation_rate": null
+     }
+    },
+    "wheels": null
+   },
+   "lilkm/earthrover-navigation-low-level-sdk": {
+    "episodes": 1,
+    "frames": 178,
+    "gps": {
+     "frames": 0,
+     "valid_share": null
+    },
+    "refresh_s": {
+     "median": 0.033,
+     "n": 169
+    },
+    "orientation_change_s": {
+     "median": null,
+     "n": 0
+    },
+    "turns": {
+     "windows": 0,
+     "qualifying": 0,
+     "clockwise": 0,
+     "counter_clockwise": 0,
+     "share_clockwise": null,
+     "deg_per_s_per_unit": null,
+     "slope_deg_per_s_per_unit": null
+    },
+    "gyroscope": {
+     "gyro_x": {
+      "n": 0,
+      "r_with_orientation_rate": null,
+      "over_orientation_rate": null
+     },
+     "gyro_y": {
+      "n": 0,
+      "r_with_orientation_rate": null,
+      "over_orientation_rate": null
+     },
+     "gyro_z": {
+      "n": 0,
+      "r_with_orientation_rate": null,
+      "over_orientation_rate": null
+     }
+    },
+    "wheels": null
+   },
+   "lilkm/earthrover-test": {
+    "episodes": 2,
+    "frames": 755,
+    "gps": {
+     "frames": 755,
+     "valid_share": 0.0
+    },
+    "refresh_s": {
+     "median": 0.5,
+     "n": 161
+    },
+    "orientation_change_s": {
+     "median": 0.5,
+     "n": 95
+    },
+    "turns": {
+     "windows": 36,
+     "qualifying": 11,
+     "clockwise": 6,
+     "counter_clockwise": 5,
+     "share_clockwise": 0.545,
+     "deg_per_s_per_unit": 42.6,
+     "slope_deg_per_s_per_unit": -2.98
+    },
+    "gyroscope": {
+     "gyro_x": {
+      "n": 36,
+      "r_with_orientation_rate": -0.684,
+      "over_orientation_rate": -0.053
+     },
+     "gyro_y": {
+      "n": 36,
+      "r_with_orientation_rate": -0.38,
+      "over_orientation_rate": -0.027
+     },
+     "gyro_z": {
+      "n": 36,
+      "r_with_orientation_rate": -0.132,
+      "over_orientation_rate": -0.022
+     }
+    },
+    "wheels": {
+     "moving": 406,
+     "duplicated": 406,
+     "forward": 17,
+     "forward_all_nonzero": 17,
+     "forward_one_sign": 17,
+     "forward_all_positive": 17,
+     "left": 63,
+     "left_rpm1_higher": 59,
+     "left_rpm0_higher": 4,
+     "right": 33,
+     "right_rpm1_higher": 1,
+     "right_rpm0_higher": 32,
+     "duplicated_share": 1.0,
+     "forward_one_sign_share": 1.0,
+     "left_rpm1_higher_share": 0.937,
+     "right_rpm0_higher_share": 0.97,
+     "speed_ratio": {
+      "median": 0.947,
+      "n": 288,
+      "q1": 0.945,
+      "q3": 0.948
+     }
+    }
+   },
+   "lilkm/earthrover-test-2": {
+    "episodes": 2,
+    "frames": 328,
+    "gps": {
+     "frames": 328,
+     "valid_share": 0.0
+    },
+    "refresh_s": {
+     "median": 0.3,
+     "n": 60
+    },
+    "orientation_change_s": {
+     "median": 0.3,
+     "n": 60
+    },
+    "turns": {
+     "windows": 15,
+     "qualifying": 0,
+     "clockwise": 0,
+     "counter_clockwise": 0,
+     "share_clockwise": null,
+     "deg_per_s_per_unit": null,
+     "slope_deg_per_s_per_unit": -0.12
+    },
+    "gyroscope": {
+     "gyro_x": {
+      "n": 0,
+      "r_with_orientation_rate": null,
+      "over_orientation_rate": null
+     },
+     "gyro_y": {
+      "n": 0,
+      "r_with_orientation_rate": null,
+      "over_orientation_rate": null
+     },
+     "gyro_z": {
+      "n": 0,
+      "r_with_orientation_rate": null,
+      "over_orientation_rate": null
+     }
+    },
+    "wheels": null
+   },
+   "lilkm/earthrover-test-3": {
+    "episodes": 2,
+    "frames": 321,
+    "gps": {
+     "frames": 321,
+     "valid_share": 0.0
+    },
+    "refresh_s": {
+     "median": 0.3,
+     "n": 81
+    },
+    "orientation_change_s": {
+     "median": 0.3,
+     "n": 81
+    },
+    "turns": {
+     "windows": 14,
+     "qualifying": 0,
+     "clockwise": 0,
+     "counter_clockwise": 0,
+     "share_clockwise": null,
+     "deg_per_s_per_unit": null,
+     "slope_deg_per_s_per_unit": -9.39
+    },
+    "gyroscope": {
+     "gyro_x": {
+      "n": 0,
+      "r_with_orientation_rate": null,
+      "over_orientation_rate": null
+     },
+     "gyro_y": {
+      "n": 0,
+      "r_with_orientation_rate": null,
+      "over_orientation_rate": null
+     },
+     "gyro_z": {
+      "n": 0,
+      "r_with_orientation_rate": null,
+      "over_orientation_rate": null
+     }
+    },
+    "wheels": null
+   }
+  }
+ },
+ "decisions": {
+  "D1": "mixed: no change; --calibrate stays the way to find out",
+  "D2": "too few forward frames with all wheels non-zero (17): no change",
+  "D3": "speed (km/h) matches the wheels at 95 mm: the 0.00497 m/s per RPM prior stays"
+ },
+ "settings": {
+  "win_s": 2.0,
+  "lag_s": 0.5,
+  "hold_s": 1.0,
+  "turn_cmd": 0.2,
+  "min_deg": 3.0,
+  "forward_cmd": 0.3,
+  "straight_ang": 0.1,
+  "side_cmd": 0.5,
+  "min_rpm": 20.0,
+  "mps_per_rpm": 0.0049741883681838385,
+  "min_windows": 30,
+  "min_forward": 30,
+  "min_speed_frames": 50
+ }
+}
