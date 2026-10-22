@@ -40,6 +40,12 @@ What it adds over a plain bearing-follower:
   straight stretches have checked them against the GPS. For 2 s after each
   fix the position follows the fresh GPS course, then the heading, the
   difference fading out over 2 s more (frodo_blend.py, frodo_blend_b.py).
+- Optionally, the compass is smoothed over its readings (--smooth-heading):
+  each new reading moves the heading only 0.3 of the way from the last
+  estimate, after turning that estimate by the angular commanded since. On a
+  simulated Mini+ with 10 degrees of compass noise this won back most of the
+  time the noise cost (pace_c.py). Off by default until a real Mini+'s compass
+  noise is measured.
 - The SDK keeps serving the last telemetry it got, so a rover whose link has
   dropped still shows a GPS fix. When no new telemetry has come in for 5 s
   (the /data timestamp stays the same, or GET /status says so), the rover is
@@ -70,7 +76,7 @@ import time
 import urllib.error
 import urllib.request
 
-__version__ = "0.11.3"
+__version__ = "0.12.0"
 
 EARTH_RADIUS_M = 6371000.0
 M_PER_DEG = EARTH_RADIUS_M * math.pi / 180.0
@@ -130,6 +136,14 @@ MARATHON = dict(ROVER_STEERING, cruise=0.8)
 # later by 0.944x the heading alone on 145 held-out rides (95% CI 0.915-0.962),
 # with no cost at 30 s. Measured on the Earth Rover Zero's raw compass only.
 DEAD_RECKON = {"use_course": False, "course_hold_s": 2.0, "fade": True}
+# pace_c.py (v0.12.0): on a simulated Mini+ with 10 degrees of compass noise,
+# HeadingSmoother with these settings was faster in all 6 cruise x course groups
+# (2.1-2.5%; 0.874 against 0.855 m/s made good at cruise 0.8) and cost nothing
+# with 3 degrees. 48 deg/s per unit of angular and 0.5 s latency are the Mini+'s,
+# from public recordings; --calibration's yaw_dps_at_full replaces the rate.
+# Off by default (--smooth-heading) until a real Mini+'s compass noise is
+# measured. Simulated only.
+SMOOTH_HEADING = {"gain": 0.3, "yaw_dps": 48.0, "lag_s": 0.5}
 
 
 # --- geometry -------------------------------------------------------------
@@ -677,6 +691,89 @@ class HeadingEstimator:
         return None
 
 
+class HeadingSmoother:
+    """Smooths the compass over its readings without lagging behind turns.
+
+    A reading is new when the /data timestamp changes (without a timestamp,
+    when the reading does). On each new reading the estimate is first turned
+    by the angular commanded since the last one (yaw_dps per unit, each
+    command taking effect lag_s after it is sent; a positive angular turns
+    clockwise, as the Pilot's own commands do), then moved `gain` of the way
+    towards the reading, across north the short way. Between readings the
+    estimate is held. With gain 1 every reading comes back unchanged; with
+    yaw_dps 0 it is a plain exponential average, which lags behind turns.
+    Readings are degrees clockwise (Conventions.heading), before the learned
+    compass bias. This is pace_c.py's HeadingSmoother, moved inside the pilot.
+    """
+
+    def __init__(self, gain=0.3, yaw_dps=48.0, lag_s=0.5, keep_s=10.0):
+        self.gain = float(gain)
+        self.yaw_dps = float(yaw_dps)
+        self.lag_s = float(lag_s)
+        self.keep_s = keep_s
+        self.readings = 0
+        self._cmds = collections.deque()
+        self._est = None
+        self._est_t = None
+        self._ts = None
+        self._reading = None
+
+    def record(self, t, angular):
+        """An angular command (positive = right) sent at t."""
+        self._cmds.append((t, float(angular)))
+        while len(self._cmds) > 1 and self._cmds[1][0] < t - self.keep_s:
+            self._cmds.popleft()
+
+    def _commanded(self, a, b, end_t):
+        """Integral over [a, b] of the angular commanded, the last held to end_t."""
+        total = 0.0
+        cmds = list(self._cmds)
+        for k, (t0, angular) in enumerate(cmds):
+            t1 = cmds[k + 1][0] if k + 1 < len(cmds) else end_t
+            lo, hi = max(t0, a), min(t1, b)
+            if hi > lo:
+                total += angular * (hi - lo)
+        return total
+
+    def update(self, t, compass, timestamp=None):
+        """The smoothed heading after this reading (None if there is no reading)."""
+        if compass is None:
+            return None
+        if self._est is None:
+            self._est = compass % 360.0
+        else:
+            new = timestamp != self._ts if timestamp is not None else compass != self._reading
+            if not new:
+                return self._est
+            turn = 0.0
+            if self.yaw_dps:
+                turn = self.yaw_dps * self._commanded(self._est_t - self.lag_s,
+                                                      t - self.lag_s, t)
+            pred = self._est + turn
+            self._est = (pred + self.gain * wrap180(compass - pred)) % 360.0
+        self.readings += 1
+        self._ts, self._reading, self._est_t = timestamp, compass, t
+        return self._est
+
+    def stats(self):
+        return {"gain": self.gain, "yaw_dps": self.yaw_dps, "lag_s": self.lag_s,
+                "readings": self.readings}
+
+
+def make_smoother(calibration=None):
+    """The HeadingSmoother --smooth-heading drives with: SMOOTH_HEADING, with the
+    turn rate --calibrate measured (yaw_dps_at_full) when the calibration has a
+    usable one."""
+    kw = dict(SMOOTH_HEADING)
+    try:
+        yaw = float((calibration or {}).get("yaw_dps_at_full"))
+    except (TypeError, ValueError):
+        yaw = None
+    if yaw is not None and math.isfinite(yaw) and yaw > 0:
+        kw["yaw_dps"] = yaw
+    return HeadingSmoother(**kw)
+
+
 # --- control --------------------------------------------------------------
 
 class Steering:
@@ -783,6 +880,10 @@ class Pilot:
     from the last GPS fix by the wheels instead of smoothing the fixes, and
     keeps the rover going through a GPS dropout while it has an estimate
     (checkpoints are reported only with a fix). Not together with gps_lag_s.
+
+    `smooth_heading`, if given (HeadingSmoother), smooths the compass over
+    its readings before anything uses it: the bias fit, the heading steered
+    by and dead reckoning.
     """
 
     def __init__(self, rover, clock=time.monotonic, sleep=time.sleep,
@@ -792,7 +893,7 @@ class Pilot:
                  replan_m=30.0, replan_s=30.0, vision=None, conventions=None,
                  gps_lag_s=0.0, cmd_latency_s=0.8, speed_mps_at_full=0.79,
                  telemetry_timeout_s=TELEMETRY_TIMEOUT_S, tip_angle_deg=TIP_ANGLE_DEG,
-                 dead_reckon=None, log=None):
+                 dead_reckon=None, log=None, smooth_heading=None):
         self.rover = rover
         self.clock = clock
         self.sleep = sleep
@@ -814,6 +915,7 @@ class Pilot:
         if dead_reckon is not None and self.lag is not None:
             raise ValueError("use gps_lag_s or dead_reckon, not both")
         self.dr = dead_reckon
+        self.smoother = smooth_heading
         self.bridged_s = 0.0  # seconds driven on the wheels' estimate alone
         self.log = log
         self.gps = GpsFilter()
@@ -850,6 +952,8 @@ class Pilot:
         self.cmd = (linear, angular)
         if self.lag is not None:
             self.lag.record(self.clock(), linear, self._heading_now)
+        if self.smoother is not None:
+            self.smoother.record(self.clock(), angular)
         self.rover.control(linear, self.conventions.angular(angular))
 
     def stop(self):
@@ -1020,6 +1124,8 @@ class Pilot:
             out["vision"] = self.vision.stats()
         if self.dr is not None:
             out["dead_reckon"] = dict(self.dr.stats(), bridged_s=round(self.bridged_s, 1))
+        if self.smoother is not None:
+            out["smooth_heading"] = self.smoother.stats()
         return out
 
     def run(self, start=True, timeout_s=3600.0):
@@ -1042,6 +1148,8 @@ class Pilot:
                 self.telemetry.update(tick, data.get("timestamp"))
                 new_fix = self.gps.update(data.get("latitude"), data.get("longitude"), tick)
                 compass = self.conventions.heading(data.get("orientation"))
+                if self.smoother is not None:
+                    compass = self.smoother.update(tick, compass, data.get("timestamp"))
                 self.heading.update(tick, new_fix, compass, *self.cmd)
                 self._heading_now = self.heading.heading(compass, tick)
                 if self.dr is not None:
@@ -1550,6 +1658,12 @@ def main(argv=None):
                    help="with --dead-reckon, metres per second per wheel RPM to start from "
                         "(default: the Earth Rover Mini+'s 95 mm wheels, 0.00497); it is "
                         "learned while driving")
+    p.add_argument("--smooth-heading", action="store_true",
+                   help="smooth the compass over its readings, turning the estimate by the "
+                        "angular commanded since each one (pace_c.py: on a simulated Mini+ "
+                        "with 10 degrees of compass noise this won back most of the time the "
+                        "noise cost); the turn rate comes from --calibration if it has one, "
+                        "otherwise 48 deg/s per unit of angular (default: off)")
     p.add_argument("--telemetry-timeout", type=float, default=TELEMETRY_TIMEOUT_S,
                    help="stop the rover while no new telemetry has come in for this many "
                         "seconds: the /data timestamp stays the same, or GET /status gives a "
@@ -1616,6 +1730,7 @@ def main(argv=None):
         p.error("--check-route needs --osm or --fetch-osm")
 
     conventions = None
+    saved = None
     if args.calibration:
         with open(args.calibration, encoding="utf-8") as f:
             saved = json.load(f)
@@ -1693,7 +1808,8 @@ def main(argv=None):
                           report_radius_m=args.report_radius, planner=planner, vision=vision,
                           conventions=conventions, gps_lag_s=args.gps_lag,
                           telemetry_timeout_s=args.telemetry_timeout,
-                          tip_angle_deg=args.tip_angle, dead_reckon=reckoner, log=log)
+                          tip_angle_deg=args.tip_angle, dead_reckon=reckoner, log=log,
+                          smooth_heading=make_smoother(saved) if args.smooth_heading else None)
             result = pilot.run(start=not args.no_start, timeout_s=args.timeout)
             if args.simulate and args.obstacles:
                 result["sim_contacts"] = rover.contacts

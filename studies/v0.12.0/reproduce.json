@@ -1,0 +1,14 @@
+{
+ "rover_pilot": "0.12.0",
+ "pace_c": "0.1.0",
+ "variant": "cf0.3",
+ "settings": {
+  "gain": 0.3,
+  "yaw_dps": 48.0,
+  "lag_s": 0.5
+ },
+ "pairs": 144,
+ "identical": 144,
+ "mismatches": [],
+ "elapsed_s": 354.8
+}
