@@ -37,7 +37,9 @@ What it adds over a plain bearing-follower:
   RPMs along the compass-corrected heading (dead_reckon.py; --no-dead-reckon
   turns it off, --dead-reckon turns it on in the simulator), and the rover
   drives on through GPS dropouts of up to 30 s. The wheels are used only once
-  straight stretches have checked them against the GPS.
+  straight stretches have checked them against the GPS. For 2 s after each
+  fix the position follows the fresh GPS course, then the heading, the
+  difference fading out over 2 s more (frodo_blend.py, frodo_blend_b.py).
 - The SDK keeps serving the last telemetry it got, so a rover whose link has
   dropped still shows a GPS fix. When no new telemetry has come in for 5 s
   (the /data timestamp stays the same, or GET /status says so), the rover is
@@ -68,7 +70,7 @@ import time
 import urllib.error
 import urllib.request
 
-__version__ = "0.10.0"
+__version__ = "0.11.0"
 
 EARTH_RADIUS_M = 6371000.0
 M_PER_DEG = EARTH_RADIUS_M * math.pi / 180.0
@@ -122,7 +124,12 @@ MARATHON = dict(ROVER_STEERING, cruise=0.8)
 # compass-corrected heading, rather than the last GPS course, gave the smallest
 # position error and the fastest missions on every simulated rover and GPS
 # error model tried. Simulated only.
-DEAD_RECKON = {"use_course": False}
+# frodo_blend.py and frodo_blend_b.py (v0.11.0): on recorded FrodoBots-2K rides
+# the fresh GPS course beat the live compass for the first 2-3 s after a fix.
+# Holding it 2 s, then fading to the heading over 2 s more, missed the fix 10 s
+# later by 0.944x the heading alone on 145 held-out rides (95% CI 0.915-0.962),
+# with no cost at 30 s. Measured on the Earth Rover Zero's raw compass only.
+DEAD_RECKON = {"use_course": False, "course_hold_s": 2.0, "fade": True}
 
 
 # --- geometry -------------------------------------------------------------
