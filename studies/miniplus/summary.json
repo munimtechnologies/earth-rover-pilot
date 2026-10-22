@@ -1,0 +1,921 @@
+{
+ "version": "0.1.0",
+ "elapsed_s": 22.1,
+ "datasets": [
+  {
+   "id": "AmitGMU/earthrover-navigation_20260610_165303",
+   "robot_type": "earthrover_mini_plus",
+   "fps": 10,
+   "fields": [
+    "angular",
+    "gyro_x",
+    "gyro_y",
+    "gyro_z",
+    "lat",
+    "linear",
+    "lon",
+    "orientation",
+    "rpm0",
+    "rpm1",
+    "rpm2",
+    "rpm3",
+    "speed"
+   ],
+   "license": "apache-2.0",
+   "files": 1,
+   "episodes": 1,
+   "frames": 600
+  },
+  {
+   "id": "BitRobot/Berkeley-FrodoBots-7K",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "BitRobot/FrodoBots-2K",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "BitRobot/FrodoBots-Mini-4K",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "BitRobot/berkeley-frodobots-lerobot-7k",
+   "robot_type": "frodobot",
+   "skipped": "robot_type 'frodobot'"
+  },
+  {
+   "id": "CyberHarem/ermengarde_arknights",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "DX-anes/ERMF-prediction",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "ERmak1581/QA_Code",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "ERmak1581/QA_sberquad",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "ERmak1581/fortrainvaehighres",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "ERmak1581/ru_en_qa",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "Ermiasa/amh",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "Ermiasa/amharicSpeech",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "Ermiasa/my_dataset",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "ErminiaLopez/AbigailDakota",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "ErminiaLopez/AbigailRuby",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "ErminiaLopez/AlexVictoria",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "ErminiaLopez/Amelia",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "ErminiaLopez/Charlotte",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "ErminiaLopez/CharlotteFelix",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "ErminiaLopez/CharlotteZoe",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "ErminiaLopez/Clara",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "ErminiaLopez/Daniel",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "ErminiaLopez/DanielAlice",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "ErminiaLopez/Dodd",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "ErminiaLopez/EvelynAva",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "ErminiaLopez/Finn",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "ErminiaLopez/HannahDakota",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "ErminiaLopez/Harper",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "ErminiaLopez/HarperLiam",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "ErminiaLopez/JacobStella",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "ErminiaLopez/JamesOlivia",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "ErminiaLopez/JordanMaxwell",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "ErminiaLopez/LiamMia",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "ErminiaLopez/Lila",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "ErminiaLopez/MatthewGeorge",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "ErminiaLopez/Maya",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "ErminiaLopez/Megan",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "ErminiaLopez/Michael",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "ErminiaLopez/NoahMaxwell",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "ErminiaLopez/Sarah",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "ErminiaLopez/SophiaOphelia",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "ErminiaLopez/Stella",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "ErminiaLopez/TaylorPaisley",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "Erminjamak/CPC_BIH",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "Ermman/Bank",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "Ernie-Coding/earthrover-data",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "GregoryTm566/Ermintrude",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "Kwai-Klear/SWE-smith-mini_swe_agent_plus-trajectories-66k",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "LocalLLaMA/browsecomp-plus-mini",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "Luigi712/ermenegildo-castrovillari",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "MarxistLeninist/repro-all-erms-fail-sco-bundle",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "MaybeRichard/MS-OCT-CSC-ERM-MS-ROVs",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "MedadDg243/Ermintrude",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "NHirose/sampler_frodobots_dataset",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "Wolfie-Jr/frodobots-mini-text-500g",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "YuxinJiang/sota_sft_50k_plus_web_sft_50k_refine_4o_mini",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "YuxinJiang/sota_sft_plus_web_sft_200k_refine_4o_mini",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "adv-erma/hw2-detector",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "adv-erma/pointcloud-text-data",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "adv-erma/tts-finetuning",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "ahmet-erman/turkish-culture-data",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "ahmet-erman/turkish-culture-data-2",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "alucent/mirror-SWE-smith-mini_swe_agent_plus-trajectories-66k",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "ang9867/ERM_bench",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "anirudhgudi/frodobots-lerobot-dataset",
+   "robot_type": "earth_rover_mini_plus",
+   "skipped": "robot_type 'earth_rover_mini_plus'"
+  },
+  {
+   "id": "anirudhgudi/frodobots-row-index",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "anirudhgudi/frodobots-training-shards",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "archivartaunik/mikola-ermalovich-belaruskaia-dziarzhava-vialikae-kniastva-litouskae-andrei-kali",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "archivartaunik/mikola-ermalovich-listy-vystupy-gutarki-vershy-valer-mazynski",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "cagataydev/scout-earth-rover-mini-20260616-053232",
+   "robot_type": "earth-rover-mini",
+   "skipped": "robot_type 'earth-rover-mini'"
+  },
+  {
+   "id": "cagataydev/scout-earthrover-ecot",
+   "robot_type": "earthrover_mini_plus",
+   "fps": 10,
+   "fields": [
+    "angular",
+    "lat",
+    "linear",
+    "lon",
+    "orientation"
+   ],
+   "license": "mit",
+   "files": 1,
+   "episodes": 30,
+   "frames": 11762
+  },
+  {
+   "id": "chen-hao-chao/ermine-c4-dataset",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "denis-ermolaev/bulls-data",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "dkuzmenko/earth-rover-mini-test-4",
+   "robot_type": "earthrover_mini_plus",
+   "fps": 10,
+   "fields": [
+    "angular",
+    "lat",
+    "linear",
+    "lon",
+    "orientation"
+   ],
+   "license": "apache-2.0",
+   "files": 1,
+   "episodes": 4,
+   "frames": 2400
+  },
+  {
+   "id": "earthroverprogram/erp-gpt-eu",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "earthroverprogram/lucas-mega",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "er-m2-va/m9-v1",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "ermaksxc/medassistant-ru-triage",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "ermaksxc/russian-toxic-classification",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "ermandmand/humanoid-action-observation-data",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "ermandmand/humanoid-aloha-dataset-v1",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "ermandmand/humanoid-aloha-dataset-v2",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "ermandmand/humanoid-arm-grasp-dataset",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "ermandmand/humanoid-balance-control-samples",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "ermandmand/humanoid-balance-dataset-v1",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "ermandmand/humanoid-basic-motion-dataset",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "ermandmand/humanoid-basic-training-dataset",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "ermandmand/humanoid-control-dataset-v1",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "ermandmand/humanoid-control-signal-dataset",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "ermandmand/humanoid-hf-dataset-v3",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "ermandmand/humanoid-interaction-dataset-03",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "ermandmand/humanoid-joint-dataset-v1",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "ermandmand/humanoid-kinematics-sequence-data",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "ermandmand/humanoid-motion-dataset-02",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "ermandmand/humanoid-motion-dataset-v1",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "ermandmand/humanoid-pose-dataset-v2",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "ermandmand/humanoid-robot-command-action",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "ermandmand/humanoid-robot-instruction-dataset",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "ermandmand/humanoid-robotics-dataset-01",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "ermandmand/humanoid-robotics-dataset-1",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "ermandmand/humanoid-robotics-dataset-1b",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "ermandmand/humanoid-robotics-dataset-2",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "ermandmand/humanoid-sample-dataset",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "ermandmand/humanoid-sample-dataset-2",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "ermandmand/humanoid-sample-dataset-3",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "ermandmand/humanoid-sensor-dataset-v1",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "ermandmand/humanoid-sensor-state-dataset",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "ermandmand/humanoid-sensor-training-data",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "ermandmand/humanoid-simple-dataset-v1",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "ermandmand/humanoid-simple-dataset-v2",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "ermandmand/humanoid-simple-dataset-v3",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "ermandmand/humanoid-training-data",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "ermandmand/humanoid-valid-dataset-v1",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "ermandmand/humanoid-valid-dataset-v3",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "ermandmand/indonesian-app-feedback-dataset",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "ermandmand/indonesian-learning-experience-dataset",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "ermandmand/indonesian-service-experience-dataset",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "ermandmand/indonesian-short-text-dataset",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "ermandmand/indonesian-simple-instruction-dataset",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "ermandmand/indonesian-simple-sentence-dataset",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "ermandmand/indonesian-user-review-dataset",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "ermandmand/robot-basic-instructions",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "ermandmand/robot-daily-instructions",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "ermandmand/robot-dataset-1",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "ermandmand/robot-dataset-2",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "ermandmand/robot-dataset-3",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "ermandmand/robot-navigation-simple",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "ermandmand/robot-safety-commands",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "ermandmand/robot-task-sequence",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "ermandmand/robot-task-steps",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "ermandmand/simple-indonesian-text-dataset",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "ermayankml/superkart-prepared-data",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "ermayankml/superkart-raw-data",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "ermcy/pol",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "ermcy/poler",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "ermiaazarkhalili/alpaca-cleaned-high-prob-qwen-0.5b-10k",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "ermiaazarkhalili/alpaca-gpt4-en-high-prob-qwen-0.5b-10k",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "ermiaazarkhalili/alpaca-gpt4-short-100tok",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "ermiaazarkhalili/alpaca-high-prob-qwen-0.5b-10k",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "ermiaazarkhalili/datasets-genbank-test",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "ermiaazarkhalili/orca-mini-short-100tok",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "ermiaazarkhalili/orca-mini-v1-high-prob-qwen-0.5b-10k",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "ermiaazarkhalili/wordle-grpo-runs",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "ermiaojushi/traffic_accident",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "erminga/emo-tts",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "ermu2001/Inter4kPllavaRecaption",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "ermu2001/LungColonCancerClassification",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "ermu2001/PLLaVATesting",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "ermu2001/RESULTS",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "ermu2001/aahq_aligned_caption",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "ermu2001/aahq_caption",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "french-open-data/erm",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "kusesde/pool-ermg",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "lilkm/earthrover-navigation",
+   "robot_type": "earthrover_mini_plus",
+   "fps": 10,
+   "fields": [
+    "angular",
+    "lat",
+    "linear",
+    "lon",
+    "orientation"
+   ],
+   "license": "apache-2.0",
+   "files": 1,
+   "episodes": 2,
+   "frames": 595
+  },
+  {
+   "id": "lilkm/earthrover-navigation-low-level-sdk",
+   "robot_type": "earthrover_mini_plus",
+   "fps": 30,
+   "fields": [
+    "angular",
+    "linear",
+    "speed"
+   ],
+   "license": "apache-2.0",
+   "files": 1,
+   "episodes": 1,
+   "frames": 178
+  },
+  {
+   "id": "lilkm/earthrover-test",
+   "robot_type": "earthrover_mini_plus",
+   "fps": 10,
+   "fields": [
+    "angular",
+    "gyro_x",
+    "gyro_y",
+    "gyro_z",
+    "lat",
+    "linear",
+    "lon",
+    "orientation",
+    "rpm0",
+    "rpm1",
+    "rpm2",
+    "rpm3",
+    "speed"
+   ],
+   "license": "apache-2.0",
+   "files": 1,
+   "episodes": 2,
+   "frames": 755
+  },
+  {
+   "id": "lilkm/earthrover-test-2",
+   "robot_type": "earthrover_mini_plus",
+   "fps": 10,
+   "fields": [
+    "angular",
+    "lat",
+    "linear",
+    "lon",
+    "orientation"
+   ],
+   "license": "apache-2.0",
+   "files": 1,
+   "episodes": 2,
+   "frames": 328
+  },
+  {
+   "id": "lilkm/earthrover-test-3",
+   "robot_type": "earthrover_mini_plus",
+   "fps": 10,
+   "fields": [
+    "angular",
+    "lat",
+    "linear",
+    "lon",
+    "orientation"
+   ],
+   "license": "apache-2.0",
+   "files": 1,
+   "episodes": 2,
+   "frames": 321
+  },
+  {
+   "id": "nhatchung/frodobots_subsets",
+   "skipped": "no meta/info.json (HTTPError)"
+  },
+  {
+   "id": "uelang/erMQaublRyuR81y943",
+   "skipped": "no meta/info.json (HTTPError)"
+  }
+ ],
+ "results": {
+  "datasets": 8,
+  "episodes": 44,
+  "frames": 16939,
+  "seconds": 1677.7,
+  "orientation_min": 0.0,
+  "orientation_max": 358.0,
+  "orientation_integer_share": 0.783,
+  "orientation_hold_s": {
+   "median": 0.5,
+   "n": 1196
+  },
+  "orientation_hold_turning_s": {
+   "median": 0.5,
+   "n": 107
+  },
+  "gps_hold_s": {
+   "median": null,
+   "n": 0
+  },
+  "frames_all_fields_repeated": 0.923,
+  "turn_windows": {
+   "n": 2,
+   "datasets": 1,
+   "positive_cmd": 2,
+   "orientation_falls_on_left_turn": 1,
+   "orientation_rises_on_left_turn": 0,
+   "share_clockwise": 0.5,
+   "deg_per_s_per_unit": 7.1
+  },
+  "gyroscope": {
+   "gyro_x": {
+    "n": 0,
+    "r_with_orientation_rate": null,
+    "per_unit_cmd": null,
+    "over_orientation_rate": null
+   },
+   "gyro_y": {
+    "n": 0,
+    "r_with_orientation_rate": null,
+    "per_unit_cmd": null,
+    "over_orientation_rate": null
+   },
+   "gyro_z": {
+    "n": 0,
+    "r_with_orientation_rate": null,
+    "per_unit_cmd": null,
+    "over_orientation_rate": null
+   }
+  },
+  "wheels": {
+   "forward": {
+    "signs_pos_neg_zero": {
+     "rpm0": [
+      0,
+      0,
+      0
+     ],
+     "rpm1": [
+      0,
+      0,
+      0
+     ],
+     "rpm2": [
+      0,
+      0,
+      0
+     ],
+     "rpm3": [
+      0,
+      0,
+      0
+     ]
+    },
+    "frames_all_nonzero": 0,
+    "all_one_sign": 0,
+    "share_one_sign": null
+   },
+   "spin_left": {
+    "signs_pos_neg_zero": {
+     "rpm0": [
+      0,
+      0,
+      0
+     ],
+     "rpm1": [
+      0,
+      0,
+      0
+     ],
+     "rpm2": [
+      0,
+      0,
+      0
+     ],
+     "rpm3": [
+      0,
+      0,
+      0
+     ]
+    },
+    "frames_all_nonzero": 0,
+    "all_one_sign": 0,
+    "share_one_sign": null
+   },
+   "spin_right": {
+    "signs_pos_neg_zero": {
+     "rpm0": [
+      0,
+      0,
+      0
+     ],
+     "rpm1": [
+      0,
+      0,
+      0
+     ],
+     "rpm2": [
+      0,
+      0,
+      0
+     ],
+     "rpm3": [
+      0,
+      0,
+      0
+     ]
+    },
+    "frames_all_nonzero": 0,
+    "all_one_sign": 0,
+    "share_one_sign": null
+   }
+  },
+  "course": {
+   "pairs": 0,
+   "episodes": 0,
+   "raw_median_abs_cw": null,
+   "raw_median_abs_ccw": null,
+   "spread_cw": null,
+   "spread_ccw": null,
+   "spread_pairs": 0
+  }
+ },
+ "decisions": {
+  "D1": "too few turn windows (2 from 1 datasets): no change",
+  "D2": "too few forward frames with all wheels non-zero (0): no change"
+ },
+ "settings": {
+  "win_s": 4.0,
+  "lag_s": 1.0,
+  "turn_cmd": 0.3,
+  "straight_ang": 0.1,
+  "forward_cmd": 0.3,
+  "still_lin": 0.1,
+  "course_s": 5.0,
+  "course_m": 3.0,
+  "min_windows": 10
+ }
+}
