@@ -32,7 +32,7 @@ class Recorder(dm.DeadReckoner):
 
 class DefaultTest(unittest.TestCase):
     def test_version(self):
-        self.assertEqual(rp.__version__, "0.11.1")
+        self.assertEqual(rp.__version__, "0.11.2")
         self.assertEqual(dm.__version__, "0.2.0")
 
     def test_study_setting(self):

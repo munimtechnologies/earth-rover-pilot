@@ -138,6 +138,9 @@ class DeadReckoner:
                     ts = None
                 if ts is not None and not math.isfinite(ts):
                     ts = None
+            # The mean of the four is the centre's speed whichever column is which. On
+            # public Mini+ recordings rpm0 is the left side and rpm1 the right, and
+            # rpm2 and rpm3 repeat them on some (studies/miniplus-b/GRADE.md).
             (plain if ts is None else stamped).append((ts, sum(vals) / 4.0))
         if stamped:
             stamped.sort()
