@@ -1,0 +1,17 @@
+{
+ "source": "https://github.com/munimtechnologies/earth-rover-pilot/archive/refs/heads/main.tar.gz",
+ "fetched_at": "2026-10-22T22:17:15Z",
+ "rover_pilot": "0.12.0",
+ "sha256": {
+  "rover_pilot.py": "b52fa6f4f09d078367e07ab88d84c241a093e609a58bd8b61a54e385e9049583",
+  "pace_b.py": "c9971e1b4cbf3e6dafccd3fc00c9a1951b4a22b264bf4c89517df6eef0480b8c",
+  "pace_c.py": "e679e7cf6c3a0b3df36d8e953c53ac5627baf6f1a3c967fd1470bb5aa7cadd1e",
+  "pace_d.py": "d7f026fc7001ad98be458bea69952e356413c86d49a4b17a0d86a19ff747f16b",
+  "pace_study.py": "787cb0cd0d2974d872b6562926b24ef7031bf54fe10aa3e9ff8a1b4e8de32167",
+  "studies/pace-e/PREDICTION.md": "2eb9e69a7eaabb4783207d4b98c095701c293ca441489222a71c7e0837f384b3",
+  "studies/pace-d/runs.jsonl": "45dfaa168755e6a5725bc6164b95ef076abd85dc2573e3b8875111237e970bbb",
+  "pace_e.py": "910bcf6a03c0b8d348119d822aad29dafa58c05c35a8859fa124875ad87ac983",
+  "test_pace_e.py": "c86169db013d1c3640b4eb86bdc0d12d2f7414cc9ede0ff683a3c52b51a2b109"
+ },
+ "tests_exit": 0
+}
