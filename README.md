@@ -6,7 +6,7 @@ The [Earth Rover Challenge](https://earth-rover-challenge.github.io/) uses this 
 
 Made by **MV2 of Munim, Inc.** The code was written with AI agents.
 
-**Status (v0.11.2):** the pilot has been tested only against the built-in simulator, synthetic maps and recorded data. It has not driven a real rover yet. What real rovers do with its commands has been measured on recorded rides from the public FrodoBots-2K dataset ([FINDINGS-frodobots-2k.md](FINDINGS-frodobots-2k.md)), the simulator can move like them (`--sim-real`), and the steering for a real rover was chosen by a simulation study on that motion (`gain_study.py`). v0.9.0 reads a real rover's camera with the settings that saw the fewest phantom obstacles on recorded front-camera frames, and a check on 72 other rides held up: about 1 in 25 clear paths instead of 2 in 5 (see "Front camera" below). It is still experimental. v0.9.1 adds `gps_noise_study.py`: the pilot completed all 9,450 simulated missions under GPS error that drifts, up to 6 m (see "Drifting GPS" below). v0.9.2 stops a rover that has tipped over, read from its accelerometer (see "Tipped rover" below). v0.9.3 adds `marathon.py`, which works out what beating the human Berkeley-Stanford time asks of a Mini+ (see "Marathon budget" below).
+**Status (v0.11.3):** the pilot has been tested only against the built-in simulator, synthetic maps and recorded data. It has not driven a real rover yet. What real rovers do with its commands has been measured on recorded rides from the public FrodoBots-2K dataset ([FINDINGS-frodobots-2k.md](FINDINGS-frodobots-2k.md)), the simulator can move like them (`--sim-real`), and the steering for a real rover was chosen by a simulation study on that motion (`gain_study.py`). v0.9.0 reads a real rover's camera with the settings that saw the fewest phantom obstacles on recorded front-camera frames, and a check on 72 other rides held up: about 1 in 25 clear paths instead of 2 in 5 (see "Front camera" below). It is still experimental. v0.9.1 adds `gps_noise_study.py`: the pilot completed all 9,450 simulated missions under GPS error that drifts, up to 6 m (see "Drifting GPS" below). v0.9.2 stops a rover that has tipped over, read from its accelerometer (see "Tipped rover" below). v0.9.3 adds `marathon.py`, which works out what beating the human Berkeley-Stanford time asks of a Mini+ (see "Marathon budget" below).
 
 v0.10.0 carries the rover's position between GPS fixes on its wheels, along the compass-corrected heading (`dead_reckon.py`, on by default on a real rover): in 5,040 simulated missions this cut the late position error by up to 63% and mission time by 2-3%, or 7% with GPS dropouts. The simulator favoured following the compass heading, and on 140 recorded FrodoBots-2K rides it held: wheels carried along the raw compass plus the learned bias missed the next GPS fix 10 s later by 1.59 m against 1.90 m along the last GPS course, and 3.2 m against 5.4 m at 30 s; calibrated while driving, the compass still won (0.93x at 10 s). A real rover's GPS turned out far calmer than the simulator's noise: standing still, its fixes drifted 0.5 m in 10 s and 2.7 m in 5 minutes (`frodo_gps.py`). v0.10.0 also logs `/data` `battery` against distance, and `--marathon` sets cruise 0.8, the cruise that beat the human marathon pace in every simulated run of the main Mini+ profile, where 0.6 beat it in none (see "Marathon pace" below). Treat the defaults as a starting point and tune them on the first real runs, starting with `--calibrate`. Since v0.8.1 the rover is stopped when its telemetry stops coming in (see "Lost telemetry" below).
 
@@ -15,6 +15,8 @@ v0.11.0 holds the fresh GPS course for 2 s after each fix before following the c
 v0.11.1 doesn't change the pilot. It adds `frodo_between.py`, which checks whether the compass studies' figures hold for a pilot that has only the compass reads it has already made (the studies had interpolated between the 1 Hz reads, looking up to a second ahead). They do: on the same 145 held-out rides, the last read missed the next GPS fix 10 s later by 1.72 m against 1.71 m interpolated, turning it by the gyroscope or the turn command between reads gained nothing, and the 2 s course hold still helped (0.943x, 95% CI 0.920-0.963).
 
 v0.11.2 doesn't change the pilot either. It adds `miniplus.py` and `miniplus_b.py`, which measure the Earth Rover Mini+'s telemetry on 10 public LeRobot recordings (52 episodes): its `orientation` changes about every 0.5 s (earlier simulation had assumed 2 s); `rpms` column 0 is the left wheels and column 1 the right; `speed` is in km/h and matches the wheels at 95 mm; and no public recording has a GPS fix. Which way `orientation` runs came out mixed (52 of 77 turn windows the way the pilot assumes, short of the 0.8 the pre-stated rule needed), so `--calibrate` stays the way to find out (see "The Earth Rover Mini+'s telemetry" in FINDINGS-frodobots-2k.md).
+
+v0.11.3 doesn't change the pilot either. It adds `pace_b.py`, which flies the marathon-pace simulation again with the Mini+ telemetry those recordings showed (orientation every 0.5 s, 48°/s per unit of `angular`, 0.5 s latency). All 720 missions were completed and 6 of 8 predictions written before the run held: at the `--marathon` cruise of 0.8 the rover made good 0.878 m/s, leaving about 4.2 h for every stop of the 80.5 km (3.9 h on the earlier 2 s profile). 10° of compass noise cost 2.4-3.1% on every course and cruise, so a noisy heading is now the main simulated risk to the pace (see "Marathon pace" below).
 
 ## What the recorded rides say
 
@@ -326,11 +328,12 @@ python marathon.py pace summary.json     # pace_study.py's summary.json against 
 
 Limits: the 12 km and 4 km/h are the README's figures, not measurements. How far a charge really goes depends on speed, slope, surface and temperature; since v0.10.0 the pilot logs `/data` `battery` against distance, so the first long run measures it. Whether the 29 h 38 min includes the time between legs isn't published; if it does, the humans drove faster than 0.754 m/s.
 
-## Marathon pace (`pace_study.py`)
+## Marathon pace (`pace_study.py`, `pace_b.py`)
 
 ```
 python pace_study.py --out-dir out --seeds 12
 python marathon.py pace out/summary.json
+python pace_b.py --out-dir out-b --seeds 12
 ```
 
 648 simulated missions on a Mini+ stand-in (1.11 m/s at full `linear`, a fix and an orientation every 2 s), on three 1.3-1.6 km courses, at cruise 0.6, 0.8 and 1.0. Every mission was completed.
@@ -339,6 +342,8 @@ python marathon.py pace out/summary.json
 - At **0.8** it made good **0.87 m/s** and every run beat the human pace. Over 80.5 km that is about 25.8 h of driving, leaving about **3.9 h** for every stop of the marathon.
 - At **1.0** it made good **1.08 m/s**, leaving about **8.9 h**, but on a course of right-angle corners its path grew to **1.035-1.059 times** the route, close to or past the 1.044 a 12 km charge allows.
 - The orientation arriving only every 2 s costs under 1.5%. Public Mini+ recordings later showed it changing about every 0.5 s, so this was a pessimistic case. Predicting the heading between reports helped when the predictor knew the turn rate and hurt when it didn't, so it isn't used.
+- `pace_b.py` (720 missions) flew it again with the telemetry public Mini+ recordings show (orientation every 0.5 s, 48°/s, 0.5 s latency): **0.878 m/s** at 0.8, every run beating the human pace, about **4.2 h** left for stops; at 1.0 the city-blocks path was 1.028 times the route. Cruise 0.7 beat the pace on every course, but by only about 2%.
+- **Compass noise is the risk to watch.** 10° of noise on each orientation reading cost 2.4-3.1% in every group (0.855 m/s at 0.8, about 3.5 h for stops) and took cruise 0.7 below the human pace. Commands landing after 0.8 s instead of 0.5 s cost under 1%.
 
 The cruise stays 0.6 by default: the simulator has no people, crossings or kerbs, and the SDK suggests 0.3-0.5 for first tests. For the marathon, `--marathon` sets 0.8 with the real-rover steering; measure the range at that cruise first. Details in [FINDINGS-frodobots-2k.md](FINDINGS-frodobots-2k.md).
 
@@ -410,7 +415,7 @@ Map data © [OpenStreetMap contributors](https://www.openstreetmap.org/copyright
 ## Tests
 
 ```
-python -m unittest test_rover_pilot test_rover_defaults test_steering_defaults test_telemetry test_tip_and_bias test_calibrate test_calibrate_real test_route_planner test_free_space test_free_space_skip test_vision_settings test_frodo_motion test_frodo_frames test_gps_lag test_gain_study test_gps_noise_study test_marathon test_dead_reckon test_battery_log test_marathon_preset test_release test_frodo_gps test_frodo_odometry test_frodo_compass test_frodo_compass_live test_dead_reckon_study test_pace_study test_frodo_blend test_frodo_blend_b test_course_hold test_frodo_between test_miniplus test_miniplus_b -v
+python -m unittest test_rover_pilot test_rover_defaults test_steering_defaults test_telemetry test_tip_and_bias test_calibrate test_calibrate_real test_route_planner test_free_space test_free_space_skip test_vision_settings test_frodo_motion test_frodo_frames test_gps_lag test_gain_study test_gps_noise_study test_marathon test_dead_reckon test_battery_log test_marathon_preset test_release test_frodo_gps test_frodo_odometry test_frodo_compass test_frodo_compass_live test_dead_reckon_study test_pace_study test_frodo_blend test_frodo_blend_b test_course_hold test_frodo_between test_miniplus test_miniplus_b test_pace_b -v
 ```
 
 The tests cover:
@@ -452,6 +457,7 @@ The tests cover:
 - `miniplus.py` and `miniplus_b.py`: angles across north, a GPS reading of 1000 being no fix, fields that never change counted as missing, turn windows on synthetic recordings whose orientation runs either way, the lag between command and state, mixed-sign and small windows left out, forward and turning wheel frames, repeated wheel columns and which side is which, the speed check, refresh intervals, the gyroscope against the turns, the decision rules, LeRobot column names and episodes, and the command line's outputs
 - `dead_reckon_study.py`: the GPS gaps being the same for every variant, no fix inside a gap, drifting error wandering slowly, and a small run end to end
 - `pace_study.py`: the human pace and cruise floor, the courses and their planner, a rover whose orientation holds between reports, the heading predictor (a no-op on fresh orientation), flying a short course, time accounting, the sign test, the summary and the command line's outputs
+- `pace_b.py`: the baseline profiles being `pace_study.py`'s, the measured profile, each variant changing one thing from it, a rover whose orientation refreshes every 0.5 s and holds in between, a zero period being `pace_study.py`'s rover, the same missions as `pace_study.py` on its own profiles, a short course, a lost completion, the paired effects, the summary and the command line's outputs
 
 ## License
 
