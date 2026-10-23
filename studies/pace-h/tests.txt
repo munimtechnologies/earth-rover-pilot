@@ -1,0 +1,36 @@
+test_gps_when_the_wheels_have_nothing (test_pace_h.BridgePilotTests.test_gps_when_the_wheels_have_nothing) ... ok
+test_gps_while_it_has_a_fix (test_pace_h.BridgePilotTests.test_gps_while_it_has_a_fix) ... ok
+test_wheels_through_a_gap (test_pace_h.BridgePilotTests.test_wheels_through_a_gap) ... ok
+test_without_dead_reckoning (test_pace_h.BridgePilotTests.test_without_dead_reckoning) ... ok
+test_check_against_pace_g (test_pace_h.CheckTests.test_check_against_pace_g) ... ok
+test_bridge_drives_through_gaps (test_pace_h.FlyTests.test_bridge_drives_through_gaps) ... ok
+test_bridge_is_cf03_without_gaps (test_pace_h.FlyTests.test_bridge_is_cf03_without_gaps) ... ok
+test_failed_run_fields (test_pace_h.FlyTests.test_failed_run_fields) ... ok
+test_flies_as_pace_g (test_pace_h.FlyTests.test_flies_as_pace_g) ... ok
+test_known_bias_starts_right (test_pace_h.FlyTests.test_known_bias_starts_right) ... ok
+test_other_variants_fly (test_pace_h.FlyTests.test_other_variants_fly) ... ok
+test_known_bias (test_pace_h.SetupTests.test_known_bias) ... ok
+test_profiles (test_pace_h.SetupTests.test_profiles) ... ok
+test_variants (test_pace_h.SetupTests.test_variants) ... ok
+test_main_small (test_pace_h.SummaryTests.test_main_small) ... ok
+test_pair_effects (test_pace_h.SummaryTests.test_pair_effects) ... ok
+test_steer_rows (test_pace_h.SummaryTests.test_steer_rows) ... ok
+test_check_against_pace_f (test_pace_g.CheckTests.test_check_against_pace_f) ... ok
+test_dead_reckoning_flies (test_pace_g.FlyTests.test_dead_reckoning_flies) ... ok
+test_dead_reckoning_knows_better_where_it_is (test_pace_g.FlyTests.test_dead_reckoning_knows_better_where_it_is) ... ok
+test_failed_run_fields (test_pace_g.FlyTests.test_failed_run_fields) ... ok
+test_flies_as_pace_f (test_pace_g.FlyTests.test_flies_as_pace_f) ... ok
+test_position_error (test_pace_g.FlyTests.test_position_error) ... ok
+test_wheel_size_is_learned (test_pace_g.FlyTests.test_wheel_size_is_learned) ... ok
+test_profiles (test_pace_g.SetupTests.test_profiles) ... ok
+test_rovers_report_their_wheels (test_pace_g.SetupTests.test_rovers_report_their_wheels) ... ok
+test_variants (test_pace_g.SetupTests.test_variants) ... ok
+test_dr_rows (test_pace_g.SummaryTests.test_dr_rows) ... ok
+test_main_small (test_pace_g.SummaryTests.test_main_small) ... ok
+test_median_or_never (test_pace_g.SummaryTests.test_median_or_never) ... ok
+test_pair_effects (test_pace_g.SummaryTests.test_pair_effects) ... ok
+
+----------------------------------------------------------------------
+Ran 31 tests in 15.422s
+
+OK
