@@ -239,7 +239,7 @@ class CommandLineTests(unittest.TestCase):
                 rp.main(["--help"])
         text = " ".join(out.getvalue().split())
         self.assertIn("--smooth-heading", text)
-        self.assertIn("default: off", text)
+        self.assertIn("--no-smooth-heading", text)
 
 
 if __name__ == "__main__":

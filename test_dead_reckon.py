@@ -200,7 +200,7 @@ class GapRover(rp.SimRover):
 
 class PilotTest(unittest.TestCase):
     def test_version(self):
-        self.assertEqual(rp.__version__, "0.12.2")
+        self.assertEqual(rp.__version__, "0.13.0")
 
     def test_sim_rover_reports_wheels_only_when_asked(self):
         plain = rp.SimRover(rp.DEMO_MISSION, seed=1)

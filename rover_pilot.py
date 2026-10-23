@@ -40,12 +40,15 @@ What it adds over a plain bearing-follower:
   straight stretches have checked them against the GPS. For 2 s after each
   fix the position follows the fresh GPS course, then the heading, the
   difference fading out over 2 s more (frodo_blend.py, frodo_blend_b.py).
-- Optionally, the compass is smoothed over its readings (--smooth-heading):
-  each new reading moves the heading only 0.3 of the way from the last
+- On a real rover the compass is smoothed over its readings (--smooth-heading;
+  --no-smooth-heading turns it off, and the simulator keeps it off unless
+  asked): each new reading moves the heading only 0.3 of the way from the last
   estimate, after turning that estimate by the angular commanded since. On a
   simulated Mini+ with 10 degrees of compass noise this won back most of the
-  time the noise cost (pace_c.py). Off by default until a real Mini+'s compass
-  noise is measured.
+  time the noise cost (pace_c.py); without it the compass-bias learner stops
+  once the noise reaches about 6 degrees (pace_e.py); and on fresh seeds it was
+  slower in none of 33 groups, with rovers turning slower, faster or later
+  than it assumes and a -60 degree compass error (pace_f.py).
 - The SDK keeps serving the last telemetry it got, so a rover whose link has
   dropped still shows a GPS fix. When no new telemetry has come in for 5 s
   (the /data timestamp stays the same, or GET /status says so), the rover is
@@ -76,7 +79,7 @@ import time
 import urllib.error
 import urllib.request
 
-__version__ = "0.12.2"
+__version__ = "0.13.0"
 
 EARTH_RADIUS_M = 6371000.0
 M_PER_DEG = EARTH_RADIUS_M * math.pi / 180.0
@@ -141,8 +144,10 @@ DEAD_RECKON = {"use_course": False, "course_hold_s": 2.0, "fade": True}
 # (2.1-2.5%; 0.874 against 0.855 m/s made good at cruise 0.8) and cost nothing
 # with 3 degrees. 48 deg/s per unit of angular and 0.5 s latency are the Mini+'s,
 # from public recordings; --calibration's yaw_dps_at_full replaces the rate.
-# Off by default (--smooth-heading) until a real Mini+'s compass noise is
-# measured. Simulated only.
+# pace_f.py (v0.13.0): on 1,584 missions on fresh seeds it was slower in none of
+# 33 profile x course groups, with the rover turning at 32 or 64 deg/s, commands
+# landing after 1.0 s or a -60 deg compass error, so the command line turns it
+# on for a real rover (use_smooth_heading). Simulated only.
 SMOOTH_HEADING = {"gain": 0.3, "yaw_dps": 48.0, "lag_s": 0.5}
 
 
@@ -1610,6 +1615,14 @@ def use_dead_reckoning(dead_reckon, simulate, gps_lag):
     return not simulate and gps_lag <= 0
 
 
+def use_smooth_heading(smooth_heading, simulate):
+    """--smooth-heading / --no-smooth-heading if given; otherwise on for a real
+    rover and off in the simulator, so the simulator flies as before (pace_f.py)."""
+    if smooth_heading is not None:
+        return smooth_heading
+    return not simulate
+
+
 def main(argv=None):
     p = argparse.ArgumentParser(
         description="GPS waypoint pilot for the FrodoBots Earth Rover SDK.")
@@ -1658,12 +1671,16 @@ def main(argv=None):
                    help="with --dead-reckon, metres per second per wheel RPM to start from "
                         "(default: the Earth Rover Mini+'s 95 mm wheels, 0.00497); it is "
                         "learned while driving")
-    p.add_argument("--smooth-heading", action="store_true",
+    p.add_argument("--smooth-heading", dest="smooth_heading", action="store_true",
+                   default=None,
                    help="smooth the compass over its readings, turning the estimate by the "
-                        "angular commanded since each one (pace_c.py: on a simulated Mini+ "
-                        "with 10 degrees of compass noise this won back most of the time the "
-                        "noise cost); the turn rate comes from --calibration if it has one, "
-                        "otherwise 48 deg/s per unit of angular (default: off)")
+                        "angular commanded since each one (pace_c.py to pace_f.py: on a "
+                        "simulated Mini+ it kept the compass bias learned under noise and "
+                        "was slower in no group); the turn rate comes from --calibration if "
+                        "it has one, otherwise 48 deg/s per unit of angular (default: on for "
+                        "a real rover, off in the simulator)")
+    p.add_argument("--no-smooth-heading", dest="smooth_heading", action="store_false",
+                   help="steer on each compass reading as it comes")
     p.add_argument("--telemetry-timeout", type=float, default=TELEMETRY_TIMEOUT_S,
                    help="stop the rover while no new telemetry has come in for this many "
                         "seconds: the /data timestamp stays the same, or GET /status gives a "
@@ -1710,6 +1727,7 @@ def main(argv=None):
     if args.dead_reckon and args.gps_lag > 0:
         p.error("--dead-reckon and --gps-lag don't go together")
     args.dead_reckon = use_dead_reckoning(args.dead_reckon, args.simulate, args.gps_lag)
+    args.smooth_heading = use_smooth_heading(args.smooth_heading, args.simulate)
 
     if args.list_missions:
         if args.simulate:
