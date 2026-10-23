@@ -1,5 +1,6 @@
 # Copyright 2026 Munim, Inc. Licensed under the Apache License, Version 2.0.
-"""0.14.0: dead reckoning off by default on a real rover too, as pace_h.py's
+"""0.14.0 (its real-rover default changed again in 0.15.0, test_bridge_default.py):
+dead reckoning off by default on a real rover too, as pace_h.py's
 pre-stated rule R3 says (studies/pace-h/GRADE.md), and --dead-reckon-gaps,
 dead reckoning steered by only while the GPS has no fresh fix (pace_h.py's
 bridge+cf0.3), off unless asked. The Pilot class keeps steering by the
@@ -58,8 +59,9 @@ def gaps_pilot(*args, **kw):
 
 
 class DefaultTests(unittest.TestCase):
-    def test_real_rover_off_by_default(self):
-        self.assertFalse(rp.use_dead_reckoning(None, simulate=False, gps_lag=0.0))
+    def test_real_rover_on_by_default(self):
+        # 0.15.0: on again, steered by only through GPS gaps (test_bridge_default.py).
+        self.assertTrue(rp.use_dead_reckoning(None, simulate=False, gps_lag=0.0))
 
     def test_simulator_off_by_default(self):
         self.assertFalse(rp.use_dead_reckoning(None, simulate=True, gps_lag=0.0))
@@ -125,8 +127,9 @@ class PositionTests(unittest.TestCase):
 
 
 class CommandLineTests(unittest.TestCase):
-    def test_real_rover_has_no_dead_reckoning(self):
-        code, seen = built_with(["--sdk", "http://x"])
+    def test_no_dead_reckon_on_a_real_rover(self):
+        # v0.14.0's real-rover pilot.
+        code, seen = built_with(["--sdk", "http://x", "--no-dead-reckon"])
         self.assertEqual(code, 0)
         self.assertIsInstance(seen["rover"], rp.SdkClient)
         self.assertIsNone(seen["dead_reckon"])
@@ -167,7 +170,7 @@ class CommandLineTests(unittest.TestCase):
         text = " ".join(out.getvalue().split())
         self.assertIn("--dead-reckon-gaps", text)
         self.assertIn("--no-dead-reckon", text)
-        self.assertIn("(default: off;", text)
+        self.assertIn("(default: on for a real rover", text)
 
 
 class FliesAsTheStudyTests(unittest.TestCase):

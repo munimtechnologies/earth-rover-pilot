@@ -32,7 +32,7 @@ class Recorder(dm.DeadReckoner):
 
 class DefaultTest(unittest.TestCase):
     def test_version(self):
-        self.assertEqual(rp.__version__, "0.14.0")
+        self.assertEqual(rp.__version__, "0.15.0")
         self.assertEqual(dm.__version__, "0.2.0")
 
     def test_study_setting(self):
@@ -44,9 +44,10 @@ class DefaultTest(unittest.TestCase):
         self.assertEqual(dr.course_hold_s, 2.0)
         self.assertTrue(dr.fade)
 
-    def test_real_rover_off_by_default(self):
-        # 0.14.0: pace_h.py's rule R3 turned it off on a real rover too.
-        self.assertFalse(rp.use_dead_reckoning(None, simulate=False, gps_lag=0.0))
+    def test_real_rover_on_by_default(self):
+        # 0.15.0: pace_i.py's rule R1 turned it on again, steered by only
+        # through GPS gaps (test_bridge_default.py).
+        self.assertTrue(rp.use_dead_reckoning(None, simulate=False, gps_lag=0.0))
 
     def test_simulator_off_by_default(self):
         self.assertFalse(rp.use_dead_reckoning(None, simulate=True, gps_lag=0.0))
@@ -98,7 +99,7 @@ class CommandLineTest(unittest.TestCase):
             with self.assertRaises(SystemExit):
                 rp.main(["--help"])
         self.assertIn("--no-dead-reckon", out.getvalue())
-        self.assertIn("(default: off;", " ".join(out.getvalue().split()))
+        self.assertIn("(default: on for a real rover", " ".join(out.getvalue().split()))
 
 
 if __name__ == "__main__":
