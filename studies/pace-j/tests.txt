@@ -1,0 +1,38 @@
+test_check_against_pace_i (test_pace_j.CheckTests.test_check_against_pace_i) ... ok
+test_failed_run_fields (test_pace_j.FlyTests.test_failed_run_fields) ... ok
+test_flies_as_pace_i_without_wandering (test_pace_j.FlyTests.test_flies_as_pace_i_without_wandering) ... ok
+test_pace_i_left_as_it_was (test_pace_j.FlyTests.test_pace_i_left_as_it_was) ... ok
+test_wandering_flown (test_pace_j.FlyTests.test_wandering_flown) ... ok
+test_profiles (test_pace_j.SetupTests.test_profiles) ... ok
+test_variants (test_pace_j.SetupTests.test_variants) ... ok
+test_main_small (test_pace_j.SummaryTests.test_main_small) ... ok
+test_profile_effects (test_pace_j.SummaryTests.test_profile_effects) ... ok
+test_wander_rows (test_pace_j.SummaryTests.test_wander_rows) ... ok
+test_angles (test_pace_j.WanderTests.test_angles) ... ok
+test_no_wander_without_it (test_pace_j.WanderTests.test_no_wander_without_it) ... ok
+test_one_angle_per_outage (test_pace_j.WanderTests.test_one_angle_per_outage) ... ok
+test_only_the_fix_moves (test_pace_j.WanderTests.test_only_the_fix_moves) ... ok
+test_wander_at (test_pace_j.WanderTests.test_wander_at) ... ok
+test_check_against_pace_h (test_pace_i.CheckTests.test_check_against_pace_h) ... ok
+test_failed_run_fields (test_pace_i.FlyTests.test_failed_run_fields) ... ok
+test_flies_as_pace_h (test_pace_i.FlyTests.test_flies_as_pace_h) ... ok
+test_outages_flown (test_pace_i.FlyTests.test_outages_flown) ... ok
+test_reset_variant_flies (test_pace_i.FlyTests.test_reset_variant_flies) ... ok
+test_in_outage (test_pace_i.OutageTests.test_in_outage) ... ok
+test_no_fix_inside_an_outage (test_pace_i.OutageTests.test_no_fix_inside_an_outage) ... ok
+test_no_windows_without_outages (test_pace_i.OutageTests.test_no_windows_without_outages) ... ok
+test_rover_without_outages_is_pace_hs (test_pace_i.OutageTests.test_rover_without_outages_is_pace_hs) ... ok
+test_windows (test_pace_i.OutageTests.test_windows) ... ok
+test_blends_like_the_filter_without_a_gap (test_pace_i.ResettingGpsFilterTests.test_blends_like_the_filter_without_a_gap) ... ok
+test_held_fix_is_not_a_gap (test_pace_i.ResettingGpsFilterTests.test_held_fix_is_not_a_gap) ... ok
+test_starts_again_after_a_gap (test_pace_i.ResettingGpsFilterTests.test_starts_again_after_a_gap) ... ok
+test_profiles (test_pace_i.SetupTests.test_profiles) ... ok
+test_variants (test_pace_i.SetupTests.test_variants) ... ok
+test_main_small (test_pace_i.SummaryTests.test_main_small) ... ok
+test_outage_rows (test_pace_i.SummaryTests.test_outage_rows) ... ok
+test_pair_effects (test_pace_i.SummaryTests.test_pair_effects) ... ok
+
+----------------------------------------------------------------------
+Ran 33 tests in 8.681s
+
+OK
