@@ -33,13 +33,16 @@ What it adds over a plain bearing-follower:
 - Optionally, a late GPS fix is moved forward by the driving commanded since
   it was taken (--gps-lag); on the FrodoBots-2K rides the GPS runs about
   1.5 s behind the wheels.
-- On a real rover the position is carried from the last GPS fix by the wheel
-  RPMs along the compass-corrected heading (dead_reckon.py; --no-dead-reckon
-  turns it off, --dead-reckon turns it on in the simulator), and the rover
-  drives on through GPS dropouts of up to 30 s. The wheels are used only once
-  straight stretches have checked them against the GPS. For 2 s after each
-  fix the position follows the fresh GPS course, then the heading, the
-  difference fading out over 2 s more (frodo_blend.py, frodo_blend_b.py).
+- Optionally (--dead-reckon), the position is carried from the last GPS fix
+  by the wheel RPMs along the compass-corrected heading (dead_reckon.py), and
+  the rover drives on through GPS dropouts of up to 30 s. The wheels are used
+  only once straight stretches have checked them against the GPS. For 2 s
+  after each fix the position follows the fresh GPS course, then the heading,
+  the difference fading out over 2 s more (frodo_blend.py, frodo_blend_b.py).
+  Off by default since v0.14.0: on a simulated Mini+ with a clean GPS it made
+  the pilot weave, costing 1.2-6.7% of its time (pace_g.py, pace_h.py), and
+  without it the rover stops while the GPS is out. --dead-reckon-gaps steers
+  by the wheels only while the GPS has no fresh fix (pace_h.py's bridging).
 - On a real rover the compass is smoothed over its readings (--smooth-heading;
   --no-smooth-heading turns it off, and the simulator keeps it off unless
   asked): each new reading moves the heading only 0.3 of the way from the last
@@ -79,7 +82,7 @@ import time
 import urllib.error
 import urllib.request
 
-__version__ = "0.13.0"
+__version__ = "0.14.0"
 
 EARTH_RADIUS_M = 6371000.0
 M_PER_DEG = EARTH_RADIUS_M * math.pi / 180.0
@@ -138,6 +141,12 @@ MARATHON = dict(ROVER_STEERING, cruise=0.8)
 # Holding it 2 s, then fading to the heading over 2 s more, missed the fix 10 s
 # later by 0.944x the heading alone on 145 held-out rides (95% CI 0.915-0.962),
 # with no cost at 30 s. Measured on the Earth Rover Zero's raw compass only.
+# pace_g.py and pace_h.py (v0.14.0): on a simulated Mini+ with a clean GPS,
+# starting again from every fix made the position jump and the pilot weave,
+# 1.2-6.7% slower than without dead reckoning, so it is off by default on a
+# real rover too (use_dead_reckoning). Used only while the GPS had no fresh
+# fix (dead_reckon_gaps), it kept the saving through GPS gaps and cost nothing
+# on a clean GPS, but lost to the default on one course. Simulated only.
 DEAD_RECKON = {"use_course": False, "course_hold_s": 2.0, "fade": True}
 # pace_c.py (v0.12.0): on a simulated Mini+ with 10 degrees of compass noise,
 # HeadingSmoother with these settings was faster in all 6 cruise x course groups
@@ -886,6 +895,9 @@ class Pilot:
     keeps the rover going through a GPS dropout while it has an estimate
     (checkpoints are reported only with a fix). Not together with gps_lag_s.
 
+    `dead_reckon_gaps`: with dead_reckon, steer by the wheels' estimate only
+    while the GPS has no fresh fix, and by the smoothed GPS otherwise.
+
     `smooth_heading`, if given (HeadingSmoother), smooths the compass over
     its readings before anything uses it: the bias fit, the heading steered
     by and dead reckoning.
@@ -898,7 +910,8 @@ class Pilot:
                  replan_m=30.0, replan_s=30.0, vision=None, conventions=None,
                  gps_lag_s=0.0, cmd_latency_s=0.8, speed_mps_at_full=0.79,
                  telemetry_timeout_s=TELEMETRY_TIMEOUT_S, tip_angle_deg=TIP_ANGLE_DEG,
-                 dead_reckon=None, log=None, smooth_heading=None):
+                 dead_reckon=None, log=None, smooth_heading=None,
+                 dead_reckon_gaps=False):
         self.rover = rover
         self.clock = clock
         self.sleep = sleep
@@ -920,6 +933,7 @@ class Pilot:
         if dead_reckon is not None and self.lag is not None:
             raise ValueError("use gps_lag_s or dead_reckon, not both")
         self.dr = dead_reckon
+        self.dr_gaps_only = dead_reckon_gaps
         self.smoother = smooth_heading
         self.bridged_s = 0.0  # seconds driven on the wheels' estimate alone
         self.log = log
@@ -1007,10 +1021,11 @@ class Pilot:
     def _position(self, t):
         """Where the rover is taken to be: the smoothed GPS or, with gps_lag_s,
         the last fix moved forward by the driving commanded since it was seen,
-        or with dead_reckon, the wheels' estimate whenever it has one."""
+        or with dead_reckon, the wheels' estimate whenever it has one (with
+        dead_reckon_gaps, only while the GPS has no fresh fix)."""
         if self.dr is not None:
             pos = self.dr.position(t)
-            if pos is not None:
+            if pos is not None and not (self.dr_gaps_only and self.gps.has_fix(t)):
                 return pos
         if self.lag is None or self.gps.raw is None:
             return self.gps.lat, self.gps.lon
@@ -1607,12 +1622,12 @@ class SimRover:
 # --- command line ---------------------------------------------------------
 
 def use_dead_reckoning(dead_reckon, simulate, gps_lag):
-    """--dead-reckon / --no-dead-reckon if given; otherwise on for a real rover,
-    unless --gps-lag asks for the other correction, and off in the simulator
-    (dead_reckon_study.py)."""
+    """--dead-reckon / --no-dead-reckon if given; otherwise off, on a real rover
+    too since v0.14.0: on a simulated Mini+ with a clean GPS it made the pilot
+    weave and lose 1.2-6.7% of its time (pace_h.py's rule R3)."""
     if dead_reckon is not None:
         return dead_reckon
-    return not simulate and gps_lag <= 0
+    return False
 
 
 def use_smooth_heading(smooth_heading, simulate):
@@ -1664,9 +1679,15 @@ def main(argv=None):
                    help="carry the position from the last GPS fix by the wheel RPMs along "
                         "the compass-corrected heading and drive on through GPS dropouts of "
                         "up to 30 s; used once straight stretches have checked the wheels "
-                        "against the GPS (default: on for a real rover, off in the simulator)")
+                        "against the GPS (default: off; on a simulated Mini+ with a clean "
+                        "GPS it made the pilot weave, pace_h.py)")
     p.add_argument("--no-dead-reckon", dest="dead_reckon", action="store_false",
                    help="steer on the smoothed GPS fixes alone")
+    p.add_argument("--dead-reckon-gaps", action="store_true",
+                   help="dead reckoning as --dead-reckon, but steered by only while the GPS "
+                        "has no fresh fix, and by the smoothed GPS otherwise (pace_h.py: in "
+                        "simulation it kept the saving through GPS gaps without the cost on "
+                        "a clean GPS; off by default until pace_i.py decides)")
     p.add_argument("--mps-per-rpm", type=float, default=None,
                    help="with --dead-reckon, metres per second per wheel RPM to start from "
                         "(default: the Earth Rover Mini+'s 95 mm wheels, 0.00497); it is "
@@ -1724,6 +1745,10 @@ def main(argv=None):
     p.add_argument("--log", help="append a JSON-lines log of the run to this file")
     p.add_argument("--version", action="version", version=__version__)
     args = p.parse_args(argv)
+    if args.dead_reckon_gaps:
+        if args.dead_reckon is False:
+            p.error("--dead-reckon-gaps and --no-dead-reckon don't go together")
+        args.dead_reckon = True
     if args.dead_reckon and args.gps_lag > 0:
         p.error("--dead-reckon and --gps-lag don't go together")
     args.dead_reckon = use_dead_reckoning(args.dead_reckon, args.simulate, args.gps_lag)
@@ -1827,7 +1852,8 @@ def main(argv=None):
                           conventions=conventions, gps_lag_s=args.gps_lag,
                           telemetry_timeout_s=args.telemetry_timeout,
                           tip_angle_deg=args.tip_angle, dead_reckon=reckoner, log=log,
-                          smooth_heading=make_smoother(saved) if args.smooth_heading else None)
+                          smooth_heading=make_smoother(saved) if args.smooth_heading else None,
+                          dead_reckon_gaps=args.dead_reckon_gaps)
             result = pilot.run(start=not args.no_start, timeout_s=args.timeout)
             if args.simulate and args.obstacles:
                 result["sim_contacts"] = rover.contacts
