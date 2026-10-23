@@ -35,10 +35,12 @@ What it adds over a plain bearing-follower:
   1.5 s behind the wheels.
 - On a real rover, while the GPS has no fresh fix, the position is carried
   from the last fix by the wheel RPMs along the compass-corrected heading
-  (dead_reckon.py), and the rover drives on through GPS outages of up to 30 s
+  (dead_reckon.py), and the rover drives on through GPS outages of up to 120 s
   instead of stopping (--dead-reckon-gaps, the default on a real rover since
   v0.15.0: through simulated GPS outages of 15 s and 45 s it was 6.3-7.2%
-  faster and slower nowhere, pace_i.py). The wheels are used only once
+  faster and slower nowhere, pace_i.py; carrying the position 120 s rather
+  than 30 s after the last fix since v0.16.0, pace_k.py). The wheels are
+  used only once
   straight stretches have checked them against the GPS. For 2 s after each
   fix the position follows the fresh GPS course, then the heading, the
   difference fading out over 2 s more (frodo_blend.py, frodo_blend_b.py).
@@ -85,7 +87,7 @@ import time
 import urllib.error
 import urllib.request
 
-__version__ = "0.15.0"
+__version__ = "0.16.0"
 
 EARTH_RADIUS_M = 6371000.0
 M_PER_DEG = EARTH_RADIUS_M * math.pi / 180.0
@@ -155,6 +157,14 @@ MARATHON = dict(ROVER_STEERING, cruise=0.8)
 # on every course and slower on none, also on a clean GPS, so the command
 # line uses it that way on a real rover (use_dead_reckon_gaps). Simulated only.
 DEAD_RECKON = {"use_course": False, "course_hold_s": 2.0, "fade": True}
+# pace_k.py (v0.16.0): bridging GPS outages with the reckoner carrying the
+# position 60 s after the last fix was 3.3-4.7% faster than 30 s on every
+# course through 45 s outages, also with fixes wandering before them, and
+# 120 s was 5.8-6.8% faster than 30 s through 90 s outages; slower nowhere,
+# identical with 15 s outages. So the command line's bridging reckoner uses
+# 120 s (--dead-reckon keeps dead_reckon.py's 30 s). The simulated wheels
+# never slip, so a real rover's drift over 120 s is not measured yet.
+BRIDGE_MAX_S = 120.0
 # pace_c.py (v0.12.0): on a simulated Mini+ with 10 degrees of compass noise,
 # HeadingSmoother with these settings was faster in all 6 cruise x course groups
 # (2.1-2.5%; 0.874 against 0.855 m/s made good at cruise 0.8) and cost nothing
@@ -1707,7 +1717,9 @@ def main(argv=None):
                    help="dead reckoning as --dead-reckon, but steered by only while the GPS "
                         "has no fresh fix, and by the smoothed GPS otherwise (the default on a "
                         "real rover since v0.15.0: through simulated GPS outages it was faster "
-                        "on every course and slower on none, pace_i.py)")
+                        "on every course and slower on none, pace_i.py); since v0.16.0 the "
+                        "wheels carry the position up to 120 s after the last fix, not 30 s "
+                        "(pace_k.py)")
     p.add_argument("--mps-per-rpm", type=float, default=None,
                    help="with --dead-reckon, metres per second per wheel RPM to start from "
                         "(default: the Earth Rover Mini+'s 95 mm wheels, 0.00497); it is "
@@ -1867,6 +1879,8 @@ def main(argv=None):
             if args.dead_reckon:
                 import dead_reckon
                 dr_kw = dict(DEAD_RECKON)
+                if args.dead_reckon_gaps:
+                    dr_kw["max_s"] = BRIDGE_MAX_S
                 if args.mps_per_rpm is not None:
                     dr_kw["mps_per_rpm"] = args.mps_per_rpm
                 reckoner = dead_reckon.DeadReckoner(**dr_kw)

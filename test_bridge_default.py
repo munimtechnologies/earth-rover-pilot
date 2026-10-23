@@ -54,7 +54,7 @@ def gaps_pilot(*args, **kw):
 
 class DefaultTests(unittest.TestCase):
     def test_version(self):
-        self.assertEqual(rp.__version__, "0.15.0")
+        self.assertEqual(rp.__version__, "0.16.0")
 
     def test_real_rover_bridges_by_default(self):
         self.assertTrue(rp.use_dead_reckoning(None, simulate=False, gps_lag=0.0))
@@ -83,7 +83,7 @@ class DefaultTests(unittest.TestCase):
 class CommandLineTests(unittest.TestCase):
     def test_real_rover_flies_pace_i_bridge(self):
         # What pace_i.py's bridge+cf0.3 flies: the study's reckoner, the smoother
-        # and bridging.
+        # and bridging (with a 120 s reach since 0.16.0, test_reach_default.py).
         code, seen = built_with(["--sdk", "http://x"])
         self.assertEqual(code, 0)
         self.assertIsInstance(seen["rover"], rp.SdkClient)
