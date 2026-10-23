@@ -1,0 +1,31 @@
+test_check_against_pace_j (test_pace_k.CheckTests.test_check_against_pace_j) ... ok
+test_failed_run_fields (test_pace_k.FlyTests.test_failed_run_fields) ... ok
+test_flies_as_pace_j (test_pace_k.FlyTests.test_flies_as_pace_j) ... ok
+test_longer_reach_drives_through (test_pace_k.FlyTests.test_longer_reach_drives_through) ... ok
+test_added_while_inside_only (test_pace_k.KnownTests.test_added_while_inside_only) ... ok
+test_known_names_left_alone (test_pace_k.KnownTests.test_known_names_left_alone) ... ok
+test_removed_after_a_failure (test_pace_k.KnownTests.test_removed_after_a_failure) ... ok
+test_profiles (test_pace_k.SetupTests.test_profiles) ... ok
+test_variants (test_pace_k.SetupTests.test_variants) ... ok
+test_main_small (test_pace_k.SummaryTests.test_main_small) ... ok
+test_pair_effects (test_pace_k.SummaryTests.test_pair_effects) ... ok
+test_check_against_pace_i (test_pace_j.CheckTests.test_check_against_pace_i) ... ok
+test_failed_run_fields (test_pace_j.FlyTests.test_failed_run_fields) ... ok
+test_flies_as_pace_i_without_wandering (test_pace_j.FlyTests.test_flies_as_pace_i_without_wandering) ... ok
+test_pace_i_left_as_it_was (test_pace_j.FlyTests.test_pace_i_left_as_it_was) ... ok
+test_wandering_flown (test_pace_j.FlyTests.test_wandering_flown) ... ok
+test_profiles (test_pace_j.SetupTests.test_profiles) ... ok
+test_variants (test_pace_j.SetupTests.test_variants) ... ok
+test_main_small (test_pace_j.SummaryTests.test_main_small) ... ok
+test_profile_effects (test_pace_j.SummaryTests.test_profile_effects) ... ok
+test_wander_rows (test_pace_j.SummaryTests.test_wander_rows) ... ok
+test_angles (test_pace_j.WanderTests.test_angles) ... ok
+test_no_wander_without_it (test_pace_j.WanderTests.test_no_wander_without_it) ... ok
+test_one_angle_per_outage (test_pace_j.WanderTests.test_one_angle_per_outage) ... ok
+test_only_the_fix_moves (test_pace_j.WanderTests.test_only_the_fix_moves) ... ok
+test_wander_at (test_pace_j.WanderTests.test_wander_at) ... ok
+
+----------------------------------------------------------------------
+Ran 26 tests in 17.191s
+
+OK
