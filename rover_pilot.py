@@ -12,6 +12,8 @@ What it adds over a plain bearing-follower:
   with the mean compass reading over the same stretch. How well the fixes lie
   on that line is measured too; a stretch bent by drifting GPS error can be
   left out (max_residual_m) and straighter stretches trusted more (weigh).
+  On a real rover a stretch counts from 20 m rather than 10 m (since v0.17.0:
+  in simulation its fits were about 2.3 times less wrong, pace_m.py).
 - Checkpoints are reported from inside a margin of the 15 m tolerance, retried
   when refused, and the last one only after a settled stop. A report that gets
   no answer is checked against the server's checkpoint list before retrying.
@@ -88,7 +90,7 @@ import time
 import urllib.error
 import urllib.request
 
-__version__ = "0.16.1"
+__version__ = "0.17.0"
 
 EARTH_RADIUS_M = 6371000.0
 M_PER_DEG = EARTH_RADIUS_M * math.pi / 180.0
@@ -178,6 +180,15 @@ BRIDGE_MAX_S = 120.0
 # landing after 1.0 s or a -60 deg compass error, so the command line turns it
 # on for a real rover (use_smooth_heading). Simulated only.
 SMOOTH_HEADING = {"gain": 0.3, "yaw_dps": 48.0, "lag_s": 0.5}
+# pace_m.py (v0.17.0): on a simulated Mini+ each of the compass-bias
+# learner's fits over a 10 m stretch was about 9 deg off the bias that would
+# have cancelled the compass error. Over 20 m stretches the fits were about
+# 2.3 times less wrong but a third as many: the heading was truer on a steady
+# compass error (median 1.6-1.7 deg against 2.9-3.1) and about 1 deg less
+# true on a drifting one. It was slower and lost nowhere, and faster on 3 of
+# 9 profile x course groups (by at most 0.22%), so the command line gives a
+# real rover's learner these settings (make_heading). Simulated only.
+HEADING_LEARNER = {"min_move_m": 20.0}
 
 
 # --- geometry -------------------------------------------------------------
@@ -1669,6 +1680,16 @@ def use_smooth_heading(smooth_heading, simulate):
     return not simulate
 
 
+def make_heading(conventions=None):
+    """A real rover's compass-bias learner: a HeadingEstimator with
+    HEADING_LEARNER's settings (pace_m.py's rule R2), starting from the
+    calibration's bias when it has one, as the Pilot starts its own."""
+    heading = HeadingEstimator(**HEADING_LEARNER)
+    if conventions is not None and conventions.bias_deg is not None:
+        heading.bias = conventions.bias_deg
+    return heading
+
+
 def main(argv=None):
     p = argparse.ArgumentParser(
         description="GPS waypoint pilot for the FrodoBots Earth Rover SDK.")
@@ -1894,6 +1915,8 @@ def main(argv=None):
                           tip_angle_deg=args.tip_angle, dead_reckon=reckoner, log=log,
                           smooth_heading=make_smoother(saved) if args.smooth_heading else None,
                           dead_reckon_gaps=args.dead_reckon_gaps)
+            if not args.simulate:
+                pilot.heading = make_heading(conventions)
             result = pilot.run(start=not args.no_start, timeout_s=args.timeout)
             if args.simulate and args.obstacles:
                 result["sim_contacts"] = rover.contacts
