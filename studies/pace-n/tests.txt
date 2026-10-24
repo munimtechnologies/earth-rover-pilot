@@ -1,0 +1,52 @@
+test_lookahead_inside_only (test_pace_n.AimingTests.test_lookahead_inside_only) ... ok
+test_restored_after_a_failure (test_pace_n.AimingTests.test_restored_after_a_failure) ... ok
+test_check_against_pace_m (test_pace_n.CheckTests.test_check_against_pace_m) ... ok
+test_blocks_has_nine_path_corners (test_pace_n.CornerTests.test_blocks_has_nine_path_corners) ... ok
+test_gentle_courses_have_none (test_pace_n.CornerTests.test_gentle_courses_have_none) ... ok
+test_no_corner (test_pace_n.CornerTests.test_no_corner) ... ok
+test_running_past_a_corner (test_pace_n.CornerTests.test_running_past_a_corner) ... ok
+test_turning_before_a_corner (test_pace_n.CornerTests.test_turning_before_a_corner) ... ok
+test_a_variant_flies_a_corner (test_pace_n.FlyTests.test_a_variant_flies_a_corner) ... ok
+test_failed_run_fields (test_pace_n.FlyTests.test_failed_run_fields) ... ok
+test_look8_flies_as_pace_m_long20 (test_pace_n.FlyTests.test_look8_flies_as_pace_m_long20) ... ok
+test_profiles (test_pace_n.SetupTests.test_profiles) ... ok
+test_variants (test_pace_n.SetupTests.test_variants) ... ok
+test_corner_rows (test_pace_n.SummaryTests.test_corner_rows) ... ok
+test_main_small (test_pace_n.SummaryTests.test_main_small) ... ok
+test_offset_max_rows (test_pace_n.SummaryTests.test_offset_max_rows) ... ok
+test_pair_effects (test_pace_n.SummaryTests.test_pair_effects) ... ok
+test_profile_effects (test_pace_n.SummaryTests.test_profile_effects) ... ok
+test_restored_after_a_failure (test_pace_n.WatchingTests.test_restored_after_a_failure) ... ok
+test_samples_while_driving_forward_and_only_reads (test_pace_n.WatchingTests.test_samples_while_driving_forward_and_only_reads) ... ok
+test_check_against_pace_l (test_pace_m.CheckTests.test_check_against_pace_l) ... ok
+test_a_variant_flies_a_drifting_compass (test_pace_m.FlyTests.test_a_variant_flies_a_drifting_compass) ... ok
+test_failed_run_fields (test_pace_m.FlyTests.test_failed_run_fields) ... ok
+test_shipped_flies_as_pace_l (test_pace_m.FlyTests.test_shipped_flies_as_pace_l) ... ok
+test_restored_after_a_failure (test_pace_m.LearningTests.test_restored_after_a_failure) ... ok
+test_settings_reach_the_learner_while_inside_only (test_pace_m.LearningTests.test_settings_reach_the_learner_while_inside_only) ... ok
+test_across_north (test_pace_m.RecordingTests.test_across_north) ... ok
+test_decides_as_a_counting_estimator (test_pace_m.RecordingTests.test_decides_as_a_counting_estimator) ... ok
+test_fit_errors_are_the_measurements_against_the_truth (test_pace_m.RecordingTests.test_fit_errors_are_the_measurements_against_the_truth) ... ok
+test_without_truth_nothing_is_recorded (test_pace_m.RecordingTests.test_without_truth_nothing_is_recorded) ... ok
+test_profiles (test_pace_m.SetupTests.test_profiles) ... ok
+test_variants (test_pace_m.SetupTests.test_variants) ... ok
+test_fit_rows (test_pace_m.SummaryTests.test_fit_rows) ... ok
+test_main_small (test_pace_m.SummaryTests.test_main_small) ... ok
+test_pair_effects (test_pace_m.SummaryTests.test_pair_effects) ... ok
+test_profile_effects (test_pace_m.SummaryTests.test_profile_effects) ... ok
+test_a_calibration_s_bias_is_the_start (test_learner_default.CommandLineTests.test_a_calibration_s_bias_is_the_start) ... ok
+test_pilot_class_unchanged (test_learner_default.CommandLineTests.test_pilot_class_unchanged) ... ok
+test_real_rover_gets_the_study_s_learner (test_learner_default.CommandLineTests.test_real_rover_gets_the_study_s_learner) ... ok
+test_simulator_unchanged (test_learner_default.CommandLineTests.test_simulator_unchanged) ... ok
+test_with_other_real_rover_options (test_learner_default.CommandLineTests.test_with_other_real_rover_options) ... ok
+test_class_defaults_unchanged (test_learner_default.DefaultTests.test_class_defaults_unchanged) ... ok
+test_learner_is_the_study_s (test_learner_default.DefaultTests.test_learner_is_the_study_s) ... ok
+test_make_heading (test_learner_default.DefaultTests.test_make_heading) ... ok
+test_version (test_learner_default.DefaultTests.test_version) ... ok
+test_release_learner_flies_a_sample_of_pace_m_exactly (test_learner_default.FliesAsTheStudyTests.test_release_learner_flies_a_sample_of_pace_m_exactly) ... ok
+test_release_learner_flies_pace_m_long20 (test_learner_default.FliesAsTheStudyTests.test_release_learner_flies_pace_m_long20) ... ok
+
+----------------------------------------------------------------------
+Ran 47 tests in 36.190s
+
+OK
