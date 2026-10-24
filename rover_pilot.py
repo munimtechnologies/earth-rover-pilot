@@ -20,6 +20,9 @@ What it adds over a plain bearing-follower:
 - Optionally, each leg follows a walkable route planned on OpenStreetMap
   (route_planner.py) instead of heading straight for the checkpoint, and
   every remaining leg can be planned and checked before driving (--check-route).
+  On a real rover the path follower aims 16 m ahead along the route rather
+  than 8 m (since v0.18.0: in simulation it was faster on every course and
+  ran less far past corners, pace_n.py).
 - Optionally, the front camera (free_space.py) bends the heading around
   obstacles in the way and slows or stops the rover when nothing is clear.
   A real rover's camera is read with free_space.REAL_ROVER, the settings that
@@ -90,7 +93,7 @@ import time
 import urllib.error
 import urllib.request
 
-__version__ = "0.17.0"
+__version__ = "0.18.0"
 
 EARTH_RADIUS_M = 6371000.0
 M_PER_DEG = EARTH_RADIUS_M * math.pi / 180.0
@@ -189,6 +192,16 @@ SMOOTH_HEADING = {"gain": 0.3, "yaw_dps": 48.0, "lag_s": 0.5}
 # 9 profile x course groups (by at most 0.22%), so the command line gives a
 # real rover's learner these settings (make_heading). Simulated only.
 HEADING_LEARNER = {"min_move_m": 20.0}
+# pace_n.py (v0.18.0): on a simulated Mini+ following a planned path, the
+# 8 m lookahead ran a median 4.3 m past each right-angle corner and 16 m
+# 1.7-2.2 m. 16 m was faster on every course with a steady and a drifting
+# compass (3.6-3.9% on city blocks, 0.3-1.2% elsewhere) and slower nowhere,
+# and its 95th-percentile distance from the course stayed within 0.5 m of
+# 8 m's (with a drifting compass it holds the rover a little further to one
+# side), so the command line gives a real rover's path follower this
+# lookahead (Pilot.path_lookahead_m). Simulated only; it matters only with
+# --osm or --fetch-osm.
+PATH_LOOKAHEAD_M = 16.0
 
 
 # --- geometry -------------------------------------------------------------
@@ -932,6 +945,10 @@ class Pilot:
     `smooth_heading`, if given (HeadingSmoother), smooths the compass over
     its readings before anything uses it: the bias fit, the heading steered
     by and dead reckoning.
+
+    `path_lookahead_m` (an attribute, 8 m): how far ahead along a planned
+    path the rover aims (PathFollower's lookahead_m). The command line sets
+    a real rover's to PATH_LOOKAHEAD_M.
     """
 
     def __init__(self, rover, clock=time.monotonic, sleep=time.sleep,
@@ -985,6 +1002,7 @@ class Pilot:
         self.recoveries = 0
         self.plans = 0
         self.path = None
+        self.path_lookahead_m = 8.0
         self._path_seq = None
         self._plan_t = None
         self._history = collections.deque()
@@ -1104,7 +1122,8 @@ class Pilot:
         except Exception as e:  # a failed plan must not stop the rover; it heads straight on
             points = None
             self._log("plan-failed", seq=seq, error=str(e))
-        self.path = PathFollower(points) if points and len(points) >= 2 else None
+        self.path = (PathFollower(points, lookahead_m=self.path_lookahead_m)
+                     if points and len(points) >= 2 else None)
         self.plans += 1
         self._log("plan", seq=seq, points=len(points) if points else 0)
 
@@ -1917,6 +1936,7 @@ def main(argv=None):
                           dead_reckon_gaps=args.dead_reckon_gaps)
             if not args.simulate:
                 pilot.heading = make_heading(conventions)
+                pilot.path_lookahead_m = PATH_LOOKAHEAD_M
             result = pilot.run(start=not args.no_start, timeout_s=args.timeout)
             if args.simulate and args.obstacles:
                 result["sim_contacts"] = rover.contacts
