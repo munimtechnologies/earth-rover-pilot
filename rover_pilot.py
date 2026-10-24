@@ -93,7 +93,7 @@ import time
 import urllib.error
 import urllib.request
 
-__version__ = "0.18.0"
+__version__ = "0.18.1"
 
 EARTH_RADIUS_M = 6371000.0
 M_PER_DEG = EARTH_RADIUS_M * math.pi / 180.0
@@ -201,6 +201,11 @@ HEADING_LEARNER = {"min_move_m": 20.0}
 # side), so the command line gives a real rover's path follower this
 # lookahead (Pilot.path_lookahead_m). Simulated only; it matters only with
 # --osm or --fetch-osm.
+# pace_o.py (v0.18.1): with the study planner going round each checkpoint
+# corner instead of cutting across it, 16 m was still faster than 8 m on
+# every course (5.4-6.2% on city blocks). 24 m was faster again but turned
+# before each corner and ran up to 1.6 m further from the course near
+# corners, so 16 m stays.
 PATH_LOOKAHEAD_M = 16.0
 
 

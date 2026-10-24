@@ -54,7 +54,7 @@ def gaps_pilot(*args, **kw):
 
 class DefaultTests(unittest.TestCase):
     def test_version(self):
-        self.assertEqual(rp.__version__, "0.18.0")
+        self.assertEqual(rp.__version__, "0.18.1")
 
     def test_real_rover_bridges_by_default(self):
         self.assertTrue(rp.use_dead_reckoning(None, simulate=False, gps_lag=0.0))
