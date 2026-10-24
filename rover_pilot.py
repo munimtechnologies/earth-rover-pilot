@@ -39,11 +39,12 @@ What it adds over a plain bearing-follower:
   instead of stopping (--dead-reckon-gaps, the default on a real rover since
   v0.15.0: through simulated GPS outages of 15 s and 45 s it was 6.3-7.2%
   faster and slower nowhere, pace_i.py; carrying the position 120 s rather
-  than 30 s after the last fix since v0.16.0, pace_k.py). The wheels are
-  used only once
-  straight stretches have checked them against the GPS. For 2 s after each
-  fix the position follows the fresh GPS course, then the heading, the
-  difference fading out over 2 s more (frodo_blend.py, frodo_blend_b.py).
+  than 30 s after the last fix since v0.16.0, pace_k.py, and still faster
+  with wheels that slip and a compass that drifts, pace_l.py). The wheels
+  are used only once straight stretches have checked them against the GPS.
+  For 2 s after each fix the position follows the fresh GPS course, then
+  the heading, the difference fading out over 2 s more (frodo_blend.py,
+  frodo_blend_b.py).
   --dead-reckon steers by the wheels whenever it can (the real-rover default
   from v0.10.0 to v0.13.0, which made the pilot weave on a clean GPS,
   pace_g.py, pace_h.py), and --no-dead-reckon by the smoothed GPS alone, so
@@ -87,7 +88,7 @@ import time
 import urllib.error
 import urllib.request
 
-__version__ = "0.16.0"
+__version__ = "0.16.1"
 
 EARTH_RADIUS_M = 6371000.0
 M_PER_DEG = EARTH_RADIUS_M * math.pi / 180.0
@@ -162,8 +163,10 @@ DEAD_RECKON = {"use_course": False, "course_hold_s": 2.0, "fade": True}
 # course through 45 s outages, also with fixes wandering before them, and
 # 120 s was 5.8-6.8% faster than 30 s through 90 s outages; slower nowhere,
 # identical with 15 s outages. So the command line's bridging reckoner uses
-# 120 s (--dead-reckon keeps dead_reckon.py's 30 s). The simulated wheels
-# never slip, so a real rover's drift over 120 s is not measured yet.
+# 120 s (--dead-reckon keeps dead_reckon.py's 30 s). pace_l.py (v0.16.1):
+# with wheels reading up to 15% off and a drifting compass, 120 s was still
+# 2.1-2.7% faster than 60 s through 90 s outages and slower nowhere. Not
+# yet measured on a real rover.
 BRIDGE_MAX_S = 120.0
 # pace_c.py (v0.12.0): on a simulated Mini+ with 10 degrees of compass noise,
 # HeadingSmoother with these settings was faster in all 6 cruise x course groups
