@@ -1,0 +1,28 @@
+{
+ "source": "https://github.com/munimtechnologies/earth-rover-pilot/archive/refs/heads/main.tar.gz",
+ "fetched_at": "2026-10-24T21:25:38Z",
+ "rover_pilot": "0.18.1",
+ "sha256": {
+  "rover_pilot.py": "5b50226346f822d0a5606c429cefb90ebdc73e044f9ba7c46ba72ea86c1bd13a",
+  "dead_reckon.py": "bd7a329256884d57633fd03b1e580eea9477163d2b2465a663c31aec178ad54c",
+  "pace_d.py": "d7f026fc7001ad98be458bea69952e356413c86d49a4b17a0d86a19ff747f16b",
+  "pace_e.py": "910bcf6a03c0b8d348119d822aad29dafa58c05c35a8859fa124875ad87ac983",
+  "pace_f.py": "c4708d270dd71ee267b043a1fe45930d38cd8269be897cd59bdace940085e4a5",
+  "pace_g.py": "ce4e7990e13a35dcec6f690de14cc0faefa6cd867c31e3ee11de970605900dfd",
+  "pace_h.py": "db0306b35dc1c4da794d86fee2851a30130e0fa182e759b55f9670a70b16dccf",
+  "pace_i.py": "d4dc93049972a01fa2381e52c7f208839ba7acf72e489296eeae92316dc39cc5",
+  "pace_j.py": "6a73b2fb6da8a3dbf0642c5e6fdc863975254a7cd42320b97c067873f6381ee3",
+  "pace_k.py": "92b1642feae2a30aed4c8cd7cc3d0d7db3f3801ac5faaa239ae37dc730f9a0fc",
+  "pace_l.py": "305d1ce7bebec57a8b1dfafc2ebe615ae4924520cbd14026683b50bfa40d3475",
+  "pace_m.py": "7167780f15994c9b2a3bc5e1ddf49ddc8235cc1a3deac2656d3808abb97160fa",
+  "pace_n.py": "cf3f300e33bd5ec300e75a42d1ed28504f2a90c110be8f0f67ceb4ca60b12cfb",
+  "pace_o.py": "806b4bbca4ee8c0c04d3321c37ea7d265a48dc04d6453bee548ecedecc9c89dd",
+  "pace_study.py": "787cb0cd0d2974d872b6562926b24ef7031bf54fe10aa3e9ff8a1b4e8de32167",
+  "studies/pace-p/PREDICTION.md": "7e7d4c2c8fe3e09f0305e9b8fb0ea8c431696e8366a74fd54d42e62eff9c4e4a",
+  "studies/pace-o/GRADE.md": "d3ed9001543189236d32485b3da9c20e661e7df018475e5a320f1b5a15d2e3c1",
+  "studies/pace-o/runs.jsonl": "0cd66d2d1c214a41c64eafd57f1c7377449a55e00344a8c887ff38cf4846788b",
+  "pace_p.py": "c5234ba5dcf25cfce828257e043c407bfe86180e0f2d88957c726d9250d235a3",
+  "test_pace_p.py": "be88bc295cc5e75c1bbb8f3da1b821281e486ad1900d7d1cda4987ee1aea0b50"
+ },
+ "tests_exit": 0
+}
