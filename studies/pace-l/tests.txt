@@ -1,0 +1,32 @@
+test_check_against_pace_k (test_pace_l.CheckTests.test_check_against_pace_k) ... ok
+test_failed_run_fields (test_pace_l.FlyTests.test_failed_run_fields) ... ok
+test_flies_as_pace_k (test_pace_l.FlyTests.test_flies_as_pace_k) ... ok
+test_lies_fly (test_pace_l.FlyTests.test_lies_fly) ... ok
+test_added_while_inside_only (test_pace_l.KnownTests.test_added_while_inside_only) ... ok
+test_known_names_left_alone (test_pace_l.KnownTests.test_known_names_left_alone) ... ok
+test_removed_after_a_failure (test_pace_l.KnownTests.test_removed_after_a_failure) ... ok
+test_profiles (test_pace_l.SetupTests.test_profiles) ... ok
+test_variants (test_pace_l.SetupTests.test_variants) ... ok
+test_no_slip_is_a_wander_rover (test_pace_l.SlipTests.test_no_slip_is_a_wander_rover) ... ok
+test_slip_at (test_pace_l.SlipTests.test_slip_at) ... ok
+test_slip_changes_the_wheels_only (test_pace_l.SlipTests.test_slip_changes_the_wheels_only) ... ok
+test_spells (test_pace_l.SlipTests.test_spells) ... ok
+test_main_small (test_pace_l.SummaryTests.test_main_small) ... ok
+test_profile_effects (test_pace_l.SummaryTests.test_profile_effects) ... ok
+test_slip_rows (test_pace_l.SummaryTests.test_slip_rows) ... ok
+test_check_against_pace_j (test_pace_k.CheckTests.test_check_against_pace_j) ... ok
+test_failed_run_fields (test_pace_k.FlyTests.test_failed_run_fields) ... ok
+test_flies_as_pace_j (test_pace_k.FlyTests.test_flies_as_pace_j) ... ok
+test_longer_reach_drives_through (test_pace_k.FlyTests.test_longer_reach_drives_through) ... ok
+test_added_while_inside_only (test_pace_k.KnownTests.test_added_while_inside_only) ... ok
+test_known_names_left_alone (test_pace_k.KnownTests.test_known_names_left_alone) ... ok
+test_removed_after_a_failure (test_pace_k.KnownTests.test_removed_after_a_failure) ... ok
+test_profiles (test_pace_k.SetupTests.test_profiles) ... ok
+test_variants (test_pace_k.SetupTests.test_variants) ... ok
+test_main_small (test_pace_k.SummaryTests.test_main_small) ... ok
+test_pair_effects (test_pace_k.SummaryTests.test_pair_effects) ... ok
+
+----------------------------------------------------------------------
+Ran 27 tests in 22.583s
+
+OK
