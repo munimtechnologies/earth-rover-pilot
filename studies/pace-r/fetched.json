@@ -1,0 +1,32 @@
+{
+ "source": "https://github.com/munimtechnologies/earth-rover-pilot/archive/refs/heads/main.tar.gz",
+ "fetched_at": "2026-10-25T05:28:04Z",
+ "rover_pilot": "0.18.2",
+ "pace_q_runs_on_main": true,
+ "sha256": {
+  "rover_pilot.py": "1e69d8667e99fb8cc0137e8707708120c2762d0eaf12e4c0d37f9acdcc6353b6",
+  "dead_reckon.py": "bd7a329256884d57633fd03b1e580eea9477163d2b2465a663c31aec178ad54c",
+  "pace_d.py": "d7f026fc7001ad98be458bea69952e356413c86d49a4b17a0d86a19ff747f16b",
+  "pace_e.py": "910bcf6a03c0b8d348119d822aad29dafa58c05c35a8859fa124875ad87ac983",
+  "pace_f.py": "c4708d270dd71ee267b043a1fe45930d38cd8269be897cd59bdace940085e4a5",
+  "pace_g.py": "ce4e7990e13a35dcec6f690de14cc0faefa6cd867c31e3ee11de970605900dfd",
+  "pace_h.py": "db0306b35dc1c4da794d86fee2851a30130e0fa182e759b55f9670a70b16dccf",
+  "pace_i.py": "d4dc93049972a01fa2381e52c7f208839ba7acf72e489296eeae92316dc39cc5",
+  "pace_j.py": "6a73b2fb6da8a3dbf0642c5e6fdc863975254a7cd42320b97c067873f6381ee3",
+  "pace_k.py": "92b1642feae2a30aed4c8cd7cc3d0d7db3f3801ac5faaa239ae37dc730f9a0fc",
+  "pace_l.py": "305d1ce7bebec57a8b1dfafc2ebe615ae4924520cbd14026683b50bfa40d3475",
+  "pace_m.py": "7167780f15994c9b2a3bc5e1ddf49ddc8235cc1a3deac2656d3808abb97160fa",
+  "pace_n.py": "cf3f300e33bd5ec300e75a42d1ed28504f2a90c110be8f0f67ceb4ca60b12cfb",
+  "pace_o.py": "806b4bbca4ee8c0c04d3321c37ea7d265a48dc04d6453bee548ecedecc9c89dd",
+  "pace_p.py": "c5234ba5dcf25cfce828257e043c407bfe86180e0f2d88957c726d9250d235a3",
+  "pace_q.py": "e65c9b5675ab756d26d8df8040e03027a43eee3c481f39f0b841a098e8cf5ff5",
+  "pace_study.py": "787cb0cd0d2974d872b6562926b24ef7031bf54fe10aa3e9ff8a1b4e8de32167",
+  "studies/pace-r/PREDICTION.md": "907629a79119cdcd65ba6c514220629299d3fb554cce1b0a54be0c8907030ae5",
+  "studies/pace-q/GRADE.md": "c74acf62e03187adfe3852e7c05b57e2e5e96b2d01a614fe01ea711ad5fe6ed5",
+  "studies/pace-p/runs.jsonl": "3748701b0f472423ee93f1edf8e41ffd3a6e898f8893c79903f5bda891d580ed",
+  "pace_r.py": "50067f5ca6b3d79ef9d211e12d46f939c9d2716de6a5b9f024eda680048f81e7",
+  "test_pace_r.py": "c236b43ddc259d0eb099200e5d14e5b0f9027ec3e7becddd069a69b68dd139dd",
+  "studies/pace-q/runs.jsonl": "e460069198b57d921d47b2b256e8f918b202c229da5635e17644623a8c1da70c"
+ },
+ "tests_exit": 0
+}
