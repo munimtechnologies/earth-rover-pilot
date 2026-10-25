@@ -1,0 +1,14 @@
+a0.3-16: 1684 rows, max err 64.25 m, max offset 7.69 m, check {'found': True, 'different': []}
+test_compare (test_trace_r.IntervalTests.test_compare) ... ok
+test_intervals (test_trace_r.IntervalTests.test_intervals) ... ok
+test_outages (test_trace_r.IntervalTests.test_outages) ... ok
+test_window (test_trace_r.IntervalTests.test_window) ... ok
+test_main_small (test_trace_r.MainTests.test_main_small) ... ok
+test_restored (test_trace_r.TraceTests.test_restored) ... ok
+test_rows_read_the_rover (test_trace_r.TraceTests.test_rows_read_the_rover) ... ok
+test_the_trace_leaves_the_mission_alone (test_trace_r.TraceTests.test_the_trace_leaves_the_mission_alone) ... ok
+
+----------------------------------------------------------------------
+Ran 8 tests in 8.142s
+
+OK
