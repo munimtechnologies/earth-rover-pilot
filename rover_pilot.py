@@ -93,7 +93,7 @@ import time
 import urllib.error
 import urllib.request
 
-__version__ = "0.18.3"
+__version__ = "0.18.4"
 
 EARTH_RADIUS_M = 6371000.0
 M_PER_DEG = EARTH_RADIUS_M * math.pi / 180.0
@@ -210,6 +210,12 @@ HEADING_LEARNER = {"min_move_m": 20.0}
 # of a turn went round corners like 16 m but kept none of 24 m's city-blocks
 # saving, and on straights it only held the rover further from the course,
 # so a real rover keeps this plain lookahead.
+# pace_r.py (v0.18.4): the lookahead is measured from where the pilot
+# thinks it is, a median 6.4 m behind the rover with GpsFilter's alpha 0.3.
+# With quiet GPS an alpha-beta tracker aiming as far ahead (12 m) was
+# 1.6-1.75% faster on city blocks and held the rover closer to the course,
+# but turned about 1 m before each corner, so by the pre-stated rule a real
+# rover keeps 16 m and alpha 0.3.
 PATH_LOOKAHEAD_M = 16.0
 
 
