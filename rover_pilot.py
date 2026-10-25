@@ -93,7 +93,7 @@ import time
 import urllib.error
 import urllib.request
 
-__version__ = "0.18.2"
+__version__ = "0.18.3"
 
 EARTH_RADIUS_M = 6371000.0
 M_PER_DEG = EARTH_RADIUS_M * math.pi / 180.0
@@ -338,6 +338,11 @@ def rover_conventions():
 
 # --- estimation -----------------------------------------------------------
 
+# pace_q.py (v0.18.3): with GPS as quiet as recorded Earth Rovers' (0.22 m),
+# alpha 0.3 leaves the pilot a median 6.3-6.4 m behind the rover. alpha 0.6,
+# raw fixes and an alpha-beta tracker cut that to 2.1-3.4 m and were 3-4%
+# faster on city blocks, but each turned before the corners, so by the
+# pre-stated rule a real rover keeps alpha 0.3.
 class GpsFilter:
     """Drops bad GPS readings and smooths the good ones."""
 
