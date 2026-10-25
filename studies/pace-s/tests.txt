@@ -1,0 +1,42 @@
+test_check_against_pace_r (test_pace_s.CheckTests.test_check_against_pace_r) ... ok
+test_a_far_jump_is_still_dropped (test_pace_s.FilterTests.test_a_far_jump_is_still_dropped) ... ok
+test_after_a_gap_restart_starts_from_the_fix (test_pace_s.FilterTests.test_after_a_gap_restart_starts_from_the_fix) ... ok
+test_the_filters_built (test_pace_s.FilterTests.test_the_filters_built) ... ok
+test_without_a_gap_restart_is_the_shipped_average (test_pace_s.FilterTests.test_without_a_gap_restart_is_the_shipped_average) ... ok
+test_a03_flies_as_pace_p_keep16 (test_pace_s.FlyTests.test_a03_flies_as_pace_p_keep16) ... ok
+test_a03_flies_as_pace_q (test_pace_s.FlyTests.test_a03_flies_as_pace_q) ... ok
+test_failed_run_fields (test_pace_s.FlyTests.test_failed_run_fields) ... ok
+test_restart_and_quiet45 (test_pace_s.FlyTests.test_restart_and_quiet45) ... ok
+test_restored_after_a_failure (test_pace_s.FlyTests.test_restored_after_a_failure) ... ok
+test_profiles (test_pace_s.SetupTests.test_profiles) ... ok
+test_variants (test_pace_s.SetupTests.test_variants) ... ok
+test_main_small (test_pace_s.SummaryTests.test_main_small) ... ok
+test_pair_effects (test_pace_s.SummaryTests.test_pair_effects) ... ok
+test_profile_effects (test_pace_s.SummaryTests.test_profile_effects) ... ok
+test_worst_rows (test_pace_s.SummaryTests.test_worst_rows) ... ok
+test_check_against_pace_p (test_pace_q.CheckTests.test_check_against_pace_p) ... ok
+test_inside_only (test_pace_q.FilteringTests.test_inside_only) ... ok
+test_restored_after_a_failure (test_pace_q.FilteringTests.test_restored_after_a_failure) ... ok
+test_track (test_pace_q.FilteringTests.test_track) ... ok
+test_a03_flies_as_pace_p_keep16 (test_pace_q.FlyTests.test_a03_flies_as_pace_p_keep16) ... ok
+test_each_variant_builds_its_filter (test_pace_q.FlyTests.test_each_variant_builds_its_filter) ... ok
+test_failed_run_fields (test_pace_q.FlyTests.test_failed_run_fields) ... ok
+test_the_quiet_profile_reaches_the_rover (test_pace_q.FlyTests.test_the_quiet_profile_reaches_the_rover) ... ok
+test_a_known_profile_is_left_alone (test_pace_q.KnownProfileTests.test_a_known_profile_is_left_alone) ... ok
+test_a_new_profile_is_known_inside_only (test_pace_q.KnownProfileTests.test_a_new_profile_is_known_inside_only) ... ok
+test_profiles (test_pace_q.SetupTests.test_profiles) ... ok
+test_variants (test_pace_q.SetupTests.test_variants) ... ok
+test_gps_rows (test_pace_q.SummaryTests.test_gps_rows) ... ok
+test_main_small (test_pace_q.SummaryTests.test_main_small) ... ok
+test_pair_effects (test_pace_q.SummaryTests.test_pair_effects) ... ok
+test_profile_effects (test_pace_q.SummaryTests.test_profile_effects) ... ok
+test_a_jump_is_still_dropped (test_pace_q.TrackingFilterTests.test_a_jump_is_still_dropped) ... ok
+test_starts_again_after_a_gap (test_pace_q.TrackingFilterTests.test_starts_again_after_a_gap) ... ok
+test_tracks_a_steady_speed_without_lag (test_pace_q.TrackingFilterTests.test_tracks_a_steady_speed_without_lag) ... ok
+test_without_beta_or_restart_it_is_the_plain_filter (test_pace_q.TrackingFilterTests.test_without_beta_or_restart_it_is_the_plain_filter) ... ok
+test_without_restart_it_carries_the_velocity_over_the_gap (test_pace_q.TrackingFilterTests.test_without_restart_it_carries_the_velocity_over_the_gap) ... ok
+
+----------------------------------------------------------------------
+Ran 37 tests in 3.919s
+
+OK
