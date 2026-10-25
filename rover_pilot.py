@@ -93,7 +93,7 @@ import time
 import urllib.error
 import urllib.request
 
-__version__ = "0.18.1"
+__version__ = "0.18.2"
 
 EARTH_RADIUS_M = 6371000.0
 M_PER_DEG = EARTH_RADIUS_M * math.pi / 180.0
@@ -206,6 +206,10 @@ HEADING_LEARNER = {"min_move_m": 20.0}
 # every course (5.4-6.2% on city blocks). 24 m was faster again but turned
 # before each corner and ran up to 1.6 m further from the course near
 # corners, so 16 m stays.
+# pace_p.py (v0.18.2): aiming 24 m ahead on straights and 16 m within 24 m
+# of a turn went round corners like 16 m but kept none of 24 m's city-blocks
+# saving, and on straights it only held the rover further from the course,
+# so a real rover keeps this plain lookahead.
 PATH_LOOKAHEAD_M = 16.0
 
 
