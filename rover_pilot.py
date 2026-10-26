@@ -93,7 +93,7 @@ import time
 import urllib.error
 import urllib.request
 
-__version__ = "0.18.4"
+__version__ = "0.18.5"
 
 EARTH_RADIUS_M = 6371000.0
 M_PER_DEG = EARTH_RADIUS_M * math.pi / 180.0
@@ -349,6 +349,13 @@ def rover_conventions():
 # raw fixes and an alpha-beta tracker cut that to 2.1-3.4 m and were 3-4%
 # faster on city blocks, but each turned before the corners, so by the
 # pre-stated rule a real rover keeps alpha 0.3.
+# pace_s.py (v0.18.5): the average is kept across GPS gaps, so the first fix
+# after a 90 s outage is blended with the average from before it and the
+# estimate jumps back about 0.7 of the distance driven through the gap
+# (studies/pace-r/TRACE.md). Starting the average again from that fix removed
+# the jump, but was slower on the straight boulevard course with 1.5 m of GPS
+# noise (6 of 24 seeds, a median of 0 s), so by the pre-stated rule it is not
+# used yet.
 class GpsFilter:
     """Drops bad GPS readings and smooths the good ones."""
 
