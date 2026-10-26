@@ -1,0 +1,445 @@
+{
+ "version": "0.1.0",
+ "pace_u": "0.1.0",
+ "pace_t": "0.1.0",
+ "rover_pilot": "0.18.6",
+ "course": "boulevard",
+ "cruise": 0.8,
+ "until_s": 60.0,
+ "missions": [
+  {
+   "profile": "blocked30",
+   "variant": "a0.3",
+   "seed": 388,
+   "csv": "calls-blocked30-a0.3-388.csv",
+   "calls": 481,
+   "elapsed_s": 1801.6,
+   "recovery_t": [
+    9.1,
+    24.2
+   ],
+   "first_outage_s": 664.5,
+   "warmup_s": 0.0,
+   "as_recorded": true,
+   "clears": [
+    {
+     "t": 0.0,
+     "gap_s": null,
+     "new_fix": true,
+     "recoveries": null,
+     "telemetry_stops": null,
+     "tip_stops": null,
+     "bridged_s": null
+    },
+    {
+     "t": 15.2,
+     "gap_s": 6.1,
+     "new_fix": true,
+     "recoveries": 1,
+     "telemetry_stops": 0,
+     "tip_stops": 0,
+     "bridged_s": 0.0
+    },
+    {
+     "t": 30.2,
+     "gap_s": 6.0,
+     "new_fix": true,
+     "recoveries": 1,
+     "telemetry_stops": 0,
+     "tip_stops": 0,
+     "bridged_s": 0.0
+    }
+   ],
+   "held": [
+    {
+     "start": 39.2,
+     "end": 59.9,
+     "calls": 208,
+     "slow": 0,
+     "least_moved_m": 2.56
+    }
+   ]
+  },
+  {
+   "profile": "blocked30",
+   "variant": "warm5",
+   "seed": 388,
+   "csv": "calls-blocked30-warm5-388.csv",
+   "calls": 531,
+   "elapsed_s": 1801.6,
+   "recovery_t": [
+    26.1
+   ],
+   "first_outage_s": 664.5,
+   "warmup_s": 5.0,
+   "as_recorded": true,
+   "clears": [
+    {
+     "t": 0.0,
+     "gap_s": null,
+     "new_fix": true,
+     "recoveries": null,
+     "telemetry_stops": null,
+     "tip_stops": null,
+     "bridged_s": null
+    },
+    {
+     "t": 12.0,
+     "gap_s": 1.1,
+     "new_fix": true,
+     "recoveries": 0,
+     "telemetry_stops": 0,
+     "tip_stops": 0,
+     "bridged_s": 0.0
+    },
+    {
+     "t": 32.1,
+     "gap_s": 6.0,
+     "new_fix": true,
+     "recoveries": 1,
+     "telemetry_stops": 0,
+     "tip_stops": 0,
+     "bridged_s": 0.0
+    }
+   ],
+   "held": [
+    {
+     "start": 46.1,
+     "end": 59.9,
+     "calls": 139,
+     "slow": 0,
+     "least_moved_m": 4.919
+    }
+   ]
+  },
+  {
+   "profile": "blocked30",
+   "variant": "warm10",
+   "seed": 388,
+   "csv": "calls-blocked30-warm10-388.csv",
+   "calls": 531,
+   "elapsed_s": 1801.6,
+   "recovery_t": [
+    31.0
+   ],
+   "first_outage_s": 664.5,
+   "warmup_s": 10.0,
+   "as_recorded": true,
+   "clears": [
+    {
+     "t": 0.0,
+     "gap_s": null,
+     "new_fix": true,
+     "recoveries": null,
+     "telemetry_stops": null,
+     "tip_stops": null,
+     "bridged_s": null
+    },
+    {
+     "t": 12.0,
+     "gap_s": 1.1,
+     "new_fix": true,
+     "recoveries": 0,
+     "telemetry_stops": 0,
+     "tip_stops": 0,
+     "bridged_s": 0.0
+    },
+    {
+     "t": 37.0,
+     "gap_s": 6.0,
+     "new_fix": true,
+     "recoveries": 1,
+     "telemetry_stops": 0,
+     "tip_stops": 0,
+     "bridged_s": 0.0
+    }
+   ],
+   "held": [
+    {
+     "start": 56.0,
+     "end": 59.9,
+     "calls": 40,
+     "slow": 0,
+     "least_moved_m": 5.367
+    }
+   ]
+  },
+  {
+   "profile": "quiet90",
+   "variant": "a0.3",
+   "seed": 388,
+   "csv": "calls-quiet90-a0.3-388.csv",
+   "calls": 540,
+   "elapsed_s": 1801.6,
+   "recovery_t": [
+    9.1
+   ],
+   "first_outage_s": 664.5,
+   "warmup_s": 0.0,
+   "as_recorded": true,
+   "clears": [
+    {
+     "t": 0.0,
+     "gap_s": null,
+     "new_fix": true,
+     "recoveries": null,
+     "telemetry_stops": null,
+     "tip_stops": null,
+     "bridged_s": null
+    },
+    {
+     "t": 15.2,
+     "gap_s": 6.1,
+     "new_fix": true,
+     "recoveries": 1,
+     "telemetry_stops": 0,
+     "tip_stops": 0,
+     "bridged_s": 0.0
+    }
+   ],
+   "held": [
+    {
+     "start": 24.2,
+     "end": 59.9,
+     "calls": 358,
+     "slow": 0,
+     "least_moved_m": 4.828
+    }
+   ]
+  },
+  {
+   "profile": "quiet90",
+   "variant": "warm10",
+   "seed": 388,
+   "csv": "calls-quiet90-warm10-388.csv",
+   "calls": 590,
+   "elapsed_s": 1801.6,
+   "recovery_t": [],
+   "first_outage_s": 664.5,
+   "warmup_s": 10.0,
+   "as_recorded": true,
+   "clears": [
+    {
+     "t": 0.0,
+     "gap_s": null,
+     "new_fix": true,
+     "recoveries": null,
+     "telemetry_stops": null,
+     "tip_stops": null,
+     "bridged_s": null
+    },
+    {
+     "t": 12.0,
+     "gap_s": 1.1,
+     "new_fix": true,
+     "recoveries": 0,
+     "telemetry_stops": 0,
+     "tip_stops": 0,
+     "bridged_s": 0.0
+    }
+   ],
+   "held": [
+    {
+     "start": 31.0,
+     "end": 59.9,
+     "calls": 290,
+     "slow": 0,
+     "least_moved_m": 5.199
+    }
+   ]
+  },
+  {
+   "profile": "blocked30",
+   "variant": "a0.3",
+   "seed": 374,
+   "csv": "calls-blocked30-a0.3-374.csv",
+   "calls": 481,
+   "elapsed_s": 1827.6,
+   "recovery_t": [
+    9.1,
+    24.2
+   ],
+   "first_outage_s": 363.0,
+   "warmup_s": 0.0,
+   "as_recorded": true,
+   "clears": [
+    {
+     "t": 0.0,
+     "gap_s": null,
+     "new_fix": true,
+     "recoveries": null,
+     "telemetry_stops": null,
+     "tip_stops": null,
+     "bridged_s": null
+    },
+    {
+     "t": 15.2,
+     "gap_s": 6.1,
+     "new_fix": true,
+     "recoveries": 1,
+     "telemetry_stops": 0,
+     "tip_stops": 0,
+     "bridged_s": 0.0
+    },
+    {
+     "t": 30.2,
+     "gap_s": 6.0,
+     "new_fix": true,
+     "recoveries": 1,
+     "telemetry_stops": 0,
+     "tip_stops": 0,
+     "bridged_s": 0.0
+    }
+   ],
+   "held": [
+    {
+     "start": 39.2,
+     "end": 59.9,
+     "calls": 208,
+     "slow": 0,
+     "least_moved_m": 2.532
+    }
+   ]
+  },
+  {
+   "profile": "blocked30",
+   "variant": "warm5",
+   "seed": 374,
+   "csv": "calls-blocked30-warm5-374.csv",
+   "calls": 482,
+   "elapsed_s": 1827.6,
+   "recovery_t": [
+    14.2,
+    34.2
+   ],
+   "first_outage_s": 363.0,
+   "warmup_s": 5.0,
+   "as_recorded": true,
+   "clears": [
+    {
+     "t": 0.0,
+     "gap_s": null,
+     "new_fix": true,
+     "recoveries": null,
+     "telemetry_stops": null,
+     "tip_stops": null,
+     "bridged_s": null
+    },
+    {
+     "t": 20.2,
+     "gap_s": 6.0,
+     "new_fix": true,
+     "recoveries": 1,
+     "telemetry_stops": 0,
+     "tip_stops": 0,
+     "bridged_s": 0.0
+    },
+    {
+     "t": 40.2,
+     "gap_s": 6.0,
+     "new_fix": true,
+     "recoveries": 1,
+     "telemetry_stops": 0,
+     "tip_stops": 0,
+     "bridged_s": 0.0
+    }
+   ],
+   "held": [
+    {
+     "start": 54.2,
+     "end": 59.9,
+     "calls": 58,
+     "slow": 0,
+     "least_moved_m": 6.011
+    }
+   ]
+  },
+  {
+   "profile": "blocked30",
+   "variant": "warm10",
+   "seed": 374,
+   "csv": "calls-blocked30-warm10-374.csv",
+   "calls": 541,
+   "elapsed_s": 1827.6,
+   "recovery_t": [
+    19.1
+   ],
+   "first_outage_s": 363.0,
+   "warmup_s": 10.0,
+   "as_recorded": true,
+   "clears": [
+    {
+     "t": 0.0,
+     "gap_s": null,
+     "new_fix": true,
+     "recoveries": null,
+     "telemetry_stops": null,
+     "tip_stops": null,
+     "bridged_s": null
+    },
+    {
+     "t": 25.1,
+     "gap_s": 6.0,
+     "new_fix": true,
+     "recoveries": 1,
+     "telemetry_stops": 0,
+     "tip_stops": 0,
+     "bridged_s": 0.0
+    }
+   ],
+   "held": [
+    {
+     "start": 44.1,
+     "end": 59.9,
+     "calls": 159,
+     "slow": 0,
+     "least_moved_m": 5.66
+    }
+   ]
+  },
+  {
+   "profile": "blocked30",
+   "variant": "warm5",
+   "seed": 373,
+   "csv": "calls-blocked30-warm5-373.csv",
+   "calls": 521,
+   "elapsed_s": 1771.6,
+   "recovery_t": [
+    16.2
+   ],
+   "first_outage_s": 1000.6,
+   "warmup_s": 5.0,
+   "as_recorded": true,
+   "clears": [
+    {
+     "t": 2.0,
+     "gap_s": null,
+     "new_fix": true,
+     "recoveries": null,
+     "telemetry_stops": null,
+     "tip_stops": null,
+     "bridged_s": null
+    },
+    {
+     "t": 22.2,
+     "gap_s": 6.0,
+     "new_fix": true,
+     "recoveries": 1,
+     "telemetry_stops": 0,
+     "tip_stops": 0,
+     "bridged_s": 0.0
+    }
+   ],
+   "held": [
+    {
+     "start": 36.2,
+     "end": 59.9,
+     "calls": 238,
+     "slow": 0,
+     "least_moved_m": 1.694
+    }
+   ]
+  }
+ ],
+ "all_as_recorded": true
+}

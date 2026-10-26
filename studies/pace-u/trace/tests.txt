@@ -1,0 +1,22 @@
+blocked30 warm10 388: 531 calls, 1801.6 s, [31.0], as recorded: True
+test_clears (test_trace_u.HelperTests.test_clears) ... ok
+test_each_second (test_trace_u.HelperTests.test_each_second) ... ok
+test_held (test_trace_u.HelperTests.test_held) ... ok
+test_main_small (test_trace_u.MainTests.test_main_small) ... ok
+test_as_recorded (test_trace_u.TraceTests.test_as_recorded) ... ok
+test_restored (test_trace_u.TraceTests.test_restored) ... FAIL
+test_rows_read_the_check (test_trace_u.TraceTests.test_rows_read_the_check) ... ok
+test_the_trace_leaves_the_mission_alone (test_trace_u.TraceTests.test_the_trace_leaves_the_mission_alone) ... ok
+
+======================================================================
+FAIL: test_restored (test_trace_u.TraceTests.test_restored)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/work/repo/test_trace_u.py", line 32, in test_restored
+    self.assertIs(pt._warming, self.warming)
+AssertionError: <function _warming at 0x75aa3a76c9a0> is not <bound method _warming of <test_trace_u.TraceTests testMethod=test_restored>>
+
+----------------------------------------------------------------------
+Ran 8 tests in 11.945s
+
+FAILED (failures=1)

@@ -1,0 +1,14 @@
+{
+ "source": "https://github.com/munimtechnologies/earth-rover-pilot/archive/refs/heads/main.tar.gz",
+ "fetched_at": "2026-10-26T15:52:48Z",
+ "rover_pilot": "0.18.6",
+ "sha256": {
+  "rover_pilot.py": "9ab6a17280f843694805d45157c3a88f3499569107e2451babe63f47670cfbc2",
+  "pace_t.py": "3c89c18702e6fee0d090eb6829306d2e64a00604b64e1b339cd3914a22ff21b0",
+  "pace_u.py": "916fd5e8c51e73024897b72118000943edcb11f8ac58b1e4f81a2ec7a0f6242b",
+  "studies/pace-u/GRADE.md": "1bd998ce222ce18ae76840963c66b02a46afb2228dffd3e18c8d229bf7b4a728",
+  "trace_u.py": "ac9cac12adaa9f4cec4246866db2e46ed9919814246fc95ccda9ea8a23a13e2b",
+  "test_trace_u.py": "651f6d66aaa2d116078ae9ac952a12d6e54b0b15d25d73a4b1a3dc6635f0690d"
+ },
+ "tests_exit": 1
+}
