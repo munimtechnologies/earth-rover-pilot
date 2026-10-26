@@ -93,7 +93,7 @@ import time
 import urllib.error
 import urllib.request
 
-__version__ = "0.18.5"
+__version__ = "0.18.6"
 
 EARTH_RADIUS_M = 6371000.0
 M_PER_DEG = EARTH_RADIUS_M * math.pi / 180.0
@@ -1123,6 +1123,12 @@ class Pilot:
         self._log("checkpoint", **leg)
         self._start_leg()
 
+    # pace_t.py (v0.18.6): judged on the smoothed GPS, this calls the rover
+    # stuck about 9 s after it drives off, though it is not: the average lags
+    # and starts from rest (studies/pace-s/TRACE.md). Waiting 10 s after each
+    # clear of the history removed that in simulation and was slower nowhere,
+    # but missed the pre-stated rule (two blocked missions lost their GPS), so
+    # it is not used yet (studies/pace-t/GRADE.md).
     def _stuck(self, t, linear):
         # Measured on the GPS itself: a predicted position would always move.
         h = self._history

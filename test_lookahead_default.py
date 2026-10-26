@@ -70,7 +70,7 @@ def sim_pilot():
 
 class DefaultTests(unittest.TestCase):
     def test_version(self):
-        self.assertEqual(rp.__version__, "0.18.5")
+        self.assertEqual(rp.__version__, "0.18.6")
 
     def test_lookahead_is_the_study_s(self):
         self.assertEqual(rp.PATH_LOOKAHEAD_M, 16.0)
