@@ -1,0 +1,14 @@
+outage90 a0.3 338: 1733 rows, 1823.6 s, check {'found': True, 'different': []}
+outage90 restart 338: 1818 rows, 1917.6 s, check {'found': True, 'different': []}
+test_changes (test_trace_s.HelperTests.test_changes) ... ok
+test_diverged (test_trace_s.HelperTests.test_diverged) ... ok
+test_stops (test_trace_s.HelperTests.test_stops) ... ok
+test_main_small (test_trace_s.MainTests.test_main_small) ... ok
+test_restored (test_trace_s.TraceTests.test_restored) ... ok
+test_rows_read_the_rover (test_trace_s.TraceTests.test_rows_read_the_rover) ... ok
+test_the_trace_leaves_the_mission_alone (test_trace_s.TraceTests.test_the_trace_leaves_the_mission_alone) ... ok
+
+----------------------------------------------------------------------
+Ran 7 tests in 16.450s
+
+OK

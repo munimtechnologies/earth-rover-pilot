@@ -1,0 +1,1445 @@
+{
+ "version": "0.1.0",
+ "pace_s": "0.1.0",
+ "trace_r": "0.1.0",
+ "rover_pilot": "0.18.4",
+ "course": "boulevard",
+ "cruise": 0.8,
+ "every_s": 1.0,
+ "stop_s": 4.0,
+ "missions": [
+  {
+   "profile": "outage90",
+   "seed": 327,
+   "variants": {
+    "a0.3": {
+     "rows": 1680,
+     "csv": "trace-outage90-a0.3-327.csv",
+     "check": {
+      "found": true,
+      "different": []
+     },
+     "record": {
+      "ok": true,
+      "elapsed_s": 1765.6,
+      "made_good_mps": 0.879,
+      "recoveries": 1,
+      "time_s": {
+       "driving": 1750.1,
+       "turning": 4.0,
+       "stopped": 9.4,
+       "reversing": 2.1
+      },
+      "position_err": {
+       "n": 1667,
+       "median_m": 6.46,
+       "p95_m": 8.36,
+       "max_m": 55.62
+      },
+      "gps": {
+       "filters": 1,
+       "restarts": null
+      },
+      "outage": {
+       "withheld": 45,
+       "gps_resets": null
+      }
+     },
+     "max_err_m": 55.71,
+     "outages": [
+      [
+       1253.5,
+       1341.5
+      ]
+     ],
+     "stops": [
+      {
+       "start": 1337.1,
+       "end": 1343.7,
+       "outage_share": 0.714,
+       "has_fix": false,
+       "reached": 2,
+       "cp_m": 4.35
+      }
+     ],
+     "recoveries": [
+      {
+       "t": 9.6,
+       "recoveries": 1,
+       "outage": false,
+       "has_fix": true,
+       "err_m": 4.96,
+       "cp_m": 395.2
+      }
+     ],
+     "checkpoints": [
+      {
+       "t": 456.6,
+       "reached": 1,
+       "outage": false,
+       "has_fix": true,
+       "err_m": 6.82,
+       "cp_m": 412.15
+      },
+      {
+       "t": 914.6,
+       "reached": 2,
+       "outage": false,
+       "has_fix": true,
+       "err_m": 7.04,
+       "cp_m": 375.55
+      },
+      {
+       "t": 1344.8,
+       "reached": 3,
+       "outage": false,
+       "has_fix": true,
+       "err_m": 54.73,
+       "cp_m": 379.29
+      }
+     ]
+    },
+    "restart": {
+     "rows": 1687,
+     "csv": "trace-outage90-restart-327.csv",
+     "check": {
+      "found": true,
+      "different": []
+     },
+     "record": {
+      "ok": true,
+      "elapsed_s": 1773.6,
+      "made_good_mps": 0.875,
+      "recoveries": 2,
+      "time_s": {
+       "driving": 1754.6,
+       "turning": 5.5,
+       "stopped": 9.3,
+       "reversing": 4.2
+      },
+      "position_err": {
+       "n": 1672,
+       "median_m": 6.4,
+       "p95_m": 8.14,
+       "max_m": 10.61
+      },
+      "gps": {
+       "filters": 1,
+       "restarts": 3
+      },
+      "outage": {
+       "withheld": 45,
+       "gps_resets": null
+      }
+     },
+     "max_err_m": 10.21,
+     "outages": [
+      [
+       1253.5,
+       1341.5
+      ]
+     ],
+     "stops": [
+      {
+       "start": 1337.1,
+       "end": 1343.7,
+       "outage_share": 0.714,
+       "has_fix": false,
+       "reached": 2,
+       "cp_m": 4.35
+      }
+     ],
+     "recoveries": [
+      {
+       "t": 9.6,
+       "recoveries": 1,
+       "outage": false,
+       "has_fix": true,
+       "err_m": 4.96,
+       "cp_m": 395.2
+      },
+      {
+       "t": 1353.6,
+       "recoveries": 2,
+       "outage": false,
+       "has_fix": true,
+       "err_m": 5.06,
+       "cp_m": 371.62
+      }
+     ],
+     "checkpoints": [
+      {
+       "t": 456.6,
+       "reached": 1,
+       "outage": false,
+       "has_fix": true,
+       "err_m": 6.82,
+       "cp_m": 412.24
+      },
+      {
+       "t": 914.6,
+       "reached": 2,
+       "outage": false,
+       "has_fix": true,
+       "err_m": 7.04,
+       "cp_m": 375.64
+      },
+      {
+       "t": 1344.8,
+       "reached": 3,
+       "outage": false,
+       "has_fix": true,
+       "err_m": 1.47,
+       "cp_m": 379.28
+      }
+     ]
+    }
+   },
+   "diff_s": 8.0,
+   "diverged_t": 172.0
+  },
+  {
+   "profile": "outage90",
+   "seed": 328,
+   "variants": {
+    "a0.3": {
+     "rows": 1738,
+     "csv": "trace-outage90-a0.3-328.csv",
+     "check": {
+      "found": true,
+      "different": []
+     },
+     "record": {
+      "ok": true,
+      "elapsed_s": 1829.6,
+      "made_good_mps": 0.8482,
+      "recoveries": 0,
+      "time_s": {
+       "driving": 1752.4,
+       "turning": 2.5,
+       "stopped": 74.7,
+       "reversing": 0.0
+      },
+      "position_err": {
+       "n": 1668,
+       "median_m": 6.43,
+       "p95_m": 10.84,
+       "max_m": 63.44
+      },
+      "gps": {
+       "filters": 1,
+       "restarts": null
+      },
+      "outage": {
+       "withheld": 270,
+       "gps_resets": null
+      }
+     },
+     "max_err_m": 63.01,
+     "outages": [
+      [
+       109.3,
+       197.3
+      ],
+      [
+       378.6,
+       467.6
+      ],
+      [
+       686.6,
+       775.6
+      ],
+      [
+       1004.6,
+       1092.9
+      ],
+      [
+       1321.7,
+       1410.8
+      ],
+      [
+       1651.7,
+       1739.7
+      ]
+     ],
+     "stops": [
+      {
+       "start": 451.6,
+       "end": 467.6,
+       "outage_share": 1.0,
+       "has_fix": false,
+       "reached": 0,
+       "cp_m": 9.09
+      },
+      {
+       "start": 1358.0,
+       "end": 1411.9,
+       "outage_share": 0.98,
+       "has_fix": false,
+       "reached": 2,
+       "cp_m": 4.22
+      }
+     ],
+     "recoveries": [],
+     "checkpoints": [
+      {
+       "t": 468.6,
+       "reached": 1,
+       "outage": false,
+       "has_fix": true,
+       "err_m": 48.12,
+       "cp_m": 413.67
+      },
+      {
+       "t": 928.6,
+       "reached": 2,
+       "outage": false,
+       "has_fix": true,
+       "err_m": 5.66,
+       "cp_m": 375.95
+      },
+      {
+       "t": 1413.0,
+       "reached": 3,
+       "outage": false,
+       "has_fix": true,
+       "err_m": 25.37,
+       "cp_m": 378.51
+      }
+     ]
+    },
+    "restart": {
+     "rows": 1744,
+     "csv": "trace-outage90-restart-328.csv",
+     "check": {
+      "found": true,
+      "different": []
+     },
+     "record": {
+      "ok": true,
+      "elapsed_s": 1835.6,
+      "made_good_mps": 0.8455,
+      "recoveries": 1,
+      "time_s": {
+       "driving": 1759.1,
+       "turning": 4.0,
+       "stopped": 70.5,
+       "reversing": 2.0
+      },
+      "position_err": {
+       "n": 1673,
+       "median_m": 6.01,
+       "p95_m": 8.13,
+       "max_m": 10.55
+      },
+      "gps": {
+       "filters": 1,
+       "restarts": 8
+      },
+      "outage": {
+       "withheld": 270,
+       "gps_resets": null
+      }
+     },
+     "max_err_m": 11.0,
+     "outages": [
+      [
+       109.3,
+       197.3
+      ],
+      [
+       378.6,
+       467.6
+      ],
+      [
+       686.6,
+       775.6
+      ],
+      [
+       1004.6,
+       1092.9
+      ],
+      [
+       1321.7,
+       1410.8
+      ],
+      [
+       1651.7,
+       1739.7
+      ]
+     ],
+     "stops": [
+      {
+       "start": 451.6,
+       "end": 467.6,
+       "outage_share": 1.0,
+       "has_fix": false,
+       "reached": 0,
+       "cp_m": 7.32
+      },
+      {
+       "start": 1362.4,
+       "end": 1411.9,
+       "outage_share": 0.978,
+       "has_fix": false,
+       "reached": 2,
+       "cp_m": 4.68
+      }
+     ],
+     "recoveries": [
+      {
+       "t": 477.6,
+       "recoveries": 1,
+       "outage": false,
+       "has_fix": true,
+       "err_m": 5.25,
+       "cp_m": 404.06
+      }
+     ],
+     "checkpoints": [
+      {
+       "t": 468.6,
+       "reached": 1,
+       "outage": false,
+       "has_fix": true,
+       "err_m": 2.05,
+       "cp_m": 411.68
+      },
+      {
+       "t": 928.6,
+       "reached": 2,
+       "outage": false,
+       "has_fix": true,
+       "err_m": 5.66,
+       "cp_m": 378.76
+      },
+      {
+       "t": 1413.0,
+       "reached": 3,
+       "outage": false,
+       "has_fix": true,
+       "err_m": 0.26,
+       "cp_m": 378.99
+      }
+     ]
+    }
+   },
+   "diff_s": 6.0,
+   "diverged_t": 201.7
+  },
+  {
+   "profile": "outage90",
+   "seed": 331,
+   "variants": {
+    "a0.3": {
+     "rows": 1800,
+     "csv": "trace-outage90-a0.3-331.csv",
+     "check": {
+      "found": true,
+      "different": []
+     },
+     "record": {
+      "ok": true,
+      "elapsed_s": 1897.6,
+      "made_good_mps": 0.8178,
+      "recoveries": 1,
+      "time_s": {
+       "driving": 1754.8,
+       "turning": 4.0,
+       "stopped": 136.7,
+       "reversing": 2.1
+      },
+      "position_err": {
+       "n": 1667,
+       "median_m": 6.51,
+       "p95_m": 8.76,
+       "max_m": 65.26
+      },
+      "gps": {
+       "filters": 1,
+       "restarts": null
+      },
+      "outage": {
+       "withheld": 135,
+       "gps_resets": null
+      }
+     },
+     "max_err_m": 65.26,
+     "outages": [
+      [
+       90.6,
+       178.6
+      ],
+      [
+       506.6,
+       595.6
+      ],
+      [
+       1365.7,
+       1454.8
+      ]
+     ],
+     "stops": [
+      {
+       "start": 93.9,
+       "end": 179.7,
+       "outage_share": 0.987,
+       "has_fix": false,
+       "reached": 0,
+       "cp_m": 329.77
+      },
+      {
+       "start": 550.6,
+       "end": 597.6,
+       "outage_share": 0.958,
+       "has_fix": false,
+       "reached": 0,
+       "cp_m": 5.36
+      }
+     ],
+     "recoveries": [
+      {
+       "t": 9.6,
+       "recoveries": 1,
+       "outage": false,
+       "has_fix": true,
+       "err_m": 5.43,
+       "cp_m": 395.33
+      }
+     ],
+     "checkpoints": [
+      {
+       "t": 598.6,
+       "reached": 1,
+       "outage": false,
+       "has_fix": true,
+       "err_m": 29.94,
+       "cp_m": 410.04
+      },
+      {
+       "t": 1054.4,
+       "reached": 2,
+       "outage": false,
+       "has_fix": true,
+       "err_m": 6.68,
+       "cp_m": 375.89
+      },
+      {
+       "t": 1472.4,
+       "reached": 3,
+       "outage": false,
+       "has_fix": true,
+       "err_m": 10.88,
+       "cp_m": 383.36
+      }
+     ]
+    },
+    "restart": {
+     "rows": 1802,
+     "csv": "trace-outage90-restart-331.csv",
+     "check": {
+      "found": true,
+      "different": []
+     },
+     "record": {
+      "ok": true,
+      "elapsed_s": 1899.6,
+      "made_good_mps": 0.817,
+      "recoveries": 2,
+      "time_s": {
+       "driving": 1752.6,
+       "turning": 5.5,
+       "stopped": 137.4,
+       "reversing": 4.1
+      },
+      "position_err": {
+       "n": 1666,
+       "median_m": 6.27,
+       "p95_m": 8.03,
+       "max_m": 11.14
+      },
+      "gps": {
+       "filters": 1,
+       "restarts": 6
+      },
+      "outage": {
+       "withheld": 135,
+       "gps_resets": null
+      }
+     },
+     "max_err_m": 11.41,
+     "outages": [
+      [
+       90.6,
+       178.6
+      ],
+      [
+       506.6,
+       595.6
+      ],
+      [
+       1365.7,
+       1454.8
+      ]
+     ],
+     "stops": [
+      {
+       "start": 93.9,
+       "end": 179.7,
+       "outage_share": 0.987,
+       "has_fix": false,
+       "reached": 0,
+       "cp_m": 329.77
+      },
+      {
+       "start": 550.6,
+       "end": 597.6,
+       "outage_share": 0.958,
+       "has_fix": false,
+       "reached": 0,
+       "cp_m": 4.82
+      }
+     ],
+     "recoveries": [
+      {
+       "t": 9.6,
+       "recoveries": 1,
+       "outage": false,
+       "has_fix": true,
+       "err_m": 5.43,
+       "cp_m": 395.33
+      },
+      {
+       "t": 607.6,
+       "recoveries": 2,
+       "outage": false,
+       "has_fix": true,
+       "err_m": 5.97,
+       "cp_m": 401.43
+      }
+     ],
+     "checkpoints": [
+      {
+       "t": 598.6,
+       "reached": 1,
+       "outage": false,
+       "has_fix": true,
+       "err_m": 1.49,
+       "cp_m": 409.12
+      },
+      {
+       "t": 1058.8,
+       "reached": 2,
+       "outage": false,
+       "has_fix": true,
+       "err_m": 6.31,
+       "cp_m": 376.44
+      },
+      {
+       "t": 1474.6,
+       "reached": 3,
+       "outage": false,
+       "has_fix": true,
+       "err_m": 6.08,
+       "cp_m": 384.27
+      }
+     ]
+    }
+   },
+   "diff_s": 2.0,
+   "diverged_t": 181.9
+  },
+  {
+   "profile": "outage90",
+   "seed": 337,
+   "variants": {
+    "a0.3": {
+     "rows": 1669,
+     "csv": "trace-outage90-a0.3-337.csv",
+     "check": {
+      "found": true,
+      "different": []
+     },
+     "record": {
+      "ok": true,
+      "elapsed_s": 1753.6,
+      "made_good_mps": 0.885,
+      "recoveries": 1,
+      "time_s": {
+       "driving": 1746.0,
+       "turning": 4.0,
+       "stopped": 1.5,
+       "reversing": 2.1
+      },
+      "position_err": {
+       "n": 1663,
+       "median_m": 6.31,
+       "p95_m": 8.57,
+       "max_m": 63.51
+      },
+      "gps": {
+       "filters": 1,
+       "restarts": null
+      },
+      "outage": {
+       "withheld": 135,
+       "gps_resets": null
+      }
+     },
+     "max_err_m": 63.95,
+     "outages": [
+      [
+       523.6,
+       612.6
+      ],
+      [
+       1025.8,
+       1114.9
+      ],
+      [
+       1202.9,
+       1290.9
+      ]
+     ],
+     "stops": [],
+     "recoveries": [
+      {
+       "t": 9.6,
+       "recoveries": 1,
+       "outage": false,
+       "has_fix": true,
+       "err_m": 4.66,
+       "cp_m": 395.25
+      }
+     ],
+     "checkpoints": [
+      {
+       "t": 454.6,
+       "reached": 1,
+       "outage": false,
+       "has_fix": true,
+       "err_m": 5.66,
+       "cp_m": 412.19
+      },
+      {
+       "t": 910.6,
+       "reached": 2,
+       "outage": false,
+       "has_fix": true,
+       "err_m": 5.72,
+       "cp_m": 377.55
+      },
+      {
+       "t": 1328.3,
+       "reached": 3,
+       "outage": false,
+       "has_fix": true,
+       "err_m": 6.53,
+       "cp_m": 384.37
+      }
+     ]
+    },
+    "restart": {
+     "rows": 1671,
+     "csv": "trace-outage90-restart-337.csv",
+     "check": {
+      "found": true,
+      "different": []
+     },
+     "record": {
+      "ok": true,
+      "elapsed_s": 1755.6,
+      "made_good_mps": 0.884,
+      "recoveries": 1,
+      "time_s": {
+       "driving": 1748.0,
+       "turning": 4.0,
+       "stopped": 1.5,
+       "reversing": 2.1
+      },
+      "position_err": {
+       "n": 1665,
+       "median_m": 6.11,
+       "p95_m": 7.85,
+       "max_m": 10.3
+      },
+      "gps": {
+       "filters": 1,
+       "restarts": 7
+      },
+      "outage": {
+       "withheld": 135,
+       "gps_resets": null
+      }
+     },
+     "max_err_m": 10.75,
+     "outages": [
+      [
+       523.6,
+       612.6
+      ],
+      [
+       1025.8,
+       1114.9
+      ],
+      [
+       1202.9,
+       1290.9
+      ]
+     ],
+     "stops": [],
+     "recoveries": [
+      {
+       "t": 9.6,
+       "recoveries": 1,
+       "outage": false,
+       "has_fix": true,
+       "err_m": 4.66,
+       "cp_m": 395.25
+      }
+     ],
+     "checkpoints": [
+      {
+       "t": 454.6,
+       "reached": 1,
+       "outage": false,
+       "has_fix": true,
+       "err_m": 5.65,
+       "cp_m": 412.41
+      },
+      {
+       "t": 912.6,
+       "reached": 2,
+       "outage": false,
+       "has_fix": true,
+       "err_m": 5.3,
+       "cp_m": 376.35
+      },
+      {
+       "t": 1330.5,
+       "reached": 3,
+       "outage": false,
+       "has_fix": true,
+       "err_m": 6.42,
+       "cp_m": 383.18
+      }
+     ]
+    }
+   },
+   "diff_s": 2.0,
+   "diverged_t": 97.2
+  },
+  {
+   "profile": "outage90",
+   "seed": 338,
+   "variants": {
+    "a0.3": {
+     "rows": 1733,
+     "csv": "trace-outage90-a0.3-338.csv",
+     "check": {
+      "found": true,
+      "different": []
+     },
+     "record": {
+      "ok": true,
+      "elapsed_s": 1823.6,
+      "made_good_mps": 0.851,
+      "recoveries": 1,
+      "time_s": {
+       "driving": 1752.9,
+       "turning": 4.0,
+       "stopped": 64.6,
+       "reversing": 2.1
+      },
+      "position_err": {
+       "n": 1669,
+       "median_m": 6.37,
+       "p95_m": 8.87,
+       "max_m": 62.87
+      },
+      "gps": {
+       "filters": 1,
+       "restarts": null
+      },
+      "outage": {
+       "withheld": 135,
+       "gps_resets": null
+      }
+     },
+     "max_err_m": 62.43,
+     "outages": [
+      [
+       118.1,
+       207.2
+      ],
+      [
+       1311.8,
+       1400.9
+      ],
+      [
+       1498.8,
+       1587.9
+      ]
+     ],
+     "stops": [
+      {
+       "start": 1340.4,
+       "end": 1402.0,
+       "outage_share": 0.982,
+       "has_fix": false,
+       "reached": 2,
+       "cp_m": 1.41
+      }
+     ],
+     "recoveries": [
+      {
+       "t": 9.6,
+       "recoveries": 1,
+       "outage": false,
+       "has_fix": true,
+       "err_m": 4.95,
+       "cp_m": 395.31
+      }
+     ],
+     "checkpoints": [
+      {
+       "t": 454.6,
+       "reached": 1,
+       "outage": false,
+       "has_fix": true,
+       "err_m": 5.47,
+       "cp_m": 413.72
+      },
+      {
+       "t": 914.6,
+       "reached": 2,
+       "outage": false,
+       "has_fix": true,
+       "err_m": 5.98,
+       "cp_m": 375.54
+      },
+      {
+       "t": 1402.0,
+       "reached": 3,
+       "outage": false,
+       "has_fix": true,
+       "err_m": 19.79,
+       "cp_m": 378.37
+      }
+     ]
+    },
+    "restart": {
+     "rows": 1818,
+     "csv": "trace-outage90-restart-338.csv",
+     "check": {
+      "found": true,
+      "different": []
+     },
+     "record": {
+      "ok": true,
+      "elapsed_s": 1917.6,
+      "made_good_mps": 0.8093,
+      "recoveries": 2,
+      "time_s": {
+       "driving": 1763.1,
+       "turning": 5.5,
+       "stopped": 144.8,
+       "reversing": 4.2
+      },
+      "position_err": {
+       "n": 1679,
+       "median_m": 6.22,
+       "p95_m": 8.22,
+       "max_m": 10.8
+      },
+      "gps": {
+       "filters": 1,
+       "restarts": 6
+      },
+      "outage": {
+       "withheld": 180,
+       "gps_resets": null
+      }
+     },
+     "max_err_m": 10.61,
+     "outages": [
+      [
+       118.1,
+       207.2
+      ],
+      [
+       1311.8,
+       1400.9
+      ],
+      [
+       1498.8,
+       1587.9
+      ],
+      [
+       1824.4,
+       1913.5
+      ]
+     ],
+     "stops": [
+      {
+       "start": 1340.4,
+       "end": 1402.0,
+       "outage_share": 0.982,
+       "has_fix": false,
+       "reached": 2,
+       "cp_m": 1.27
+      },
+      {
+       "start": 1837.6,
+       "end": 1916.8,
+       "outage_share": 0.959,
+       "has_fix": false,
+       "reached": 3,
+       "cp_m": 4.44
+      }
+     ],
+     "recoveries": [
+      {
+       "t": 9.6,
+       "recoveries": 1,
+       "outage": false,
+       "has_fix": true,
+       "err_m": 4.95,
+       "cp_m": 395.31
+      },
+      {
+       "t": 1411.9,
+       "recoveries": 2,
+       "outage": false,
+       "has_fix": true,
+       "err_m": 4.91,
+       "cp_m": 370.22
+      }
+     ],
+     "checkpoints": [
+      {
+       "t": 456.6,
+       "reached": 1,
+       "outage": false,
+       "has_fix": true,
+       "err_m": 5.43,
+       "cp_m": 412.06
+      },
+      {
+       "t": 914.6,
+       "reached": 2,
+       "outage": false,
+       "has_fix": true,
+       "err_m": 5.98,
+       "cp_m": 375.58
+      },
+      {
+       "t": 1402.0,
+       "reached": 3,
+       "outage": false,
+       "has_fix": true,
+       "err_m": 2.75,
+       "cp_m": 378.05
+      }
+     ]
+    }
+   },
+   "diff_s": 94.0,
+   "diverged_t": 209.4
+  },
+  {
+   "profile": "outage90",
+   "seed": 339,
+   "variants": {
+    "a0.3": {
+     "rows": 1673,
+     "csv": "trace-outage90-a0.3-339.csv",
+     "check": {
+      "found": true,
+      "different": []
+     },
+     "record": {
+      "ok": true,
+      "elapsed_s": 1757.6,
+      "made_good_mps": 0.883,
+      "recoveries": 1,
+      "time_s": {
+       "driving": 1750.0,
+       "turning": 4.0,
+       "stopped": 1.5,
+       "reversing": 2.1
+      },
+      "position_err": {
+       "n": 1666,
+       "median_m": 6.58,
+       "p95_m": 8.54,
+       "max_m": 62.12
+      },
+      "gps": {
+       "filters": 1,
+       "restarts": null
+      },
+      "outage": {
+       "withheld": 45,
+       "gps_resets": null
+      }
+     },
+     "max_err_m": 62.57,
+     "outages": [
+      [
+       521.6,
+       610.6
+      ]
+     ],
+     "stops": [],
+     "recoveries": [
+      {
+       "t": 9.6,
+       "recoveries": 1,
+       "outage": false,
+       "has_fix": true,
+       "err_m": 3.11,
+       "cp_m": 395.23
+      }
+     ],
+     "checkpoints": [
+      {
+       "t": 454.6,
+       "reached": 1,
+       "outage": false,
+       "has_fix": true,
+       "err_m": 5.27,
+       "cp_m": 412.23
+      },
+      {
+       "t": 910.6,
+       "reached": 2,
+       "outage": false,
+       "has_fix": true,
+       "err_m": 5.95,
+       "cp_m": 378.16
+      },
+      {
+       "t": 1328.3,
+       "reached": 3,
+       "outage": false,
+       "has_fix": true,
+       "err_m": 5.45,
+       "cp_m": 384.51
+      }
+     ]
+    },
+    "restart": {
+     "rows": 1676,
+     "csv": "trace-outage90-restart-339.csv",
+     "check": {
+      "found": true,
+      "different": []
+     },
+     "record": {
+      "ok": true,
+      "elapsed_s": 1761.6,
+      "made_good_mps": 0.881,
+      "recoveries": 2,
+      "time_s": {
+       "driving": 1750.5,
+       "turning": 5.5,
+       "stopped": 1.5,
+       "reversing": 4.1
+      },
+      "position_err": {
+       "n": 1667,
+       "median_m": 6.48,
+       "p95_m": 8.21,
+       "max_m": 10.92
+      },
+      "gps": {
+       "filters": 1,
+       "restarts": 4
+      },
+      "outage": {
+       "withheld": 45,
+       "gps_resets": null
+      }
+     },
+     "max_err_m": 11.54,
+     "outages": [
+      [
+       521.6,
+       610.6
+      ]
+     ],
+     "stops": [],
+     "recoveries": [
+      {
+       "t": 9.6,
+       "recoveries": 1,
+       "outage": false,
+       "has_fix": true,
+       "err_m": 3.11,
+       "cp_m": 395.23
+      },
+      {
+       "t": 984.6,
+       "recoveries": 2,
+       "outage": false,
+       "has_fix": true,
+       "err_m": 5.18,
+       "cp_m": 313.88
+      }
+     ],
+     "checkpoints": [
+      {
+       "t": 454.6,
+       "reached": 1,
+       "outage": false,
+       "has_fix": true,
+       "err_m": 5.27,
+       "cp_m": 412.24
+      },
+      {
+       "t": 910.6,
+       "reached": 2,
+       "outage": false,
+       "has_fix": true,
+       "err_m": 5.96,
+       "cp_m": 378.57
+      },
+      {
+       "t": 1336.0,
+       "reached": 3,
+       "outage": false,
+       "has_fix": true,
+       "err_m": 5.52,
+       "cp_m": 384.03
+      }
+     ]
+    }
+   },
+   "diff_s": 4.0,
+   "diverged_t": 357.6
+  },
+  {
+   "profile": "quietdrift90",
+   "seed": 338,
+   "variants": {
+    "a0.3": {
+     "rows": 1818,
+     "csv": "trace-quietdrift90-a0.3-338.csv",
+     "check": {
+      "found": true,
+      "different": []
+     },
+     "record": {
+      "ok": true,
+      "elapsed_s": 1917.6,
+      "made_good_mps": 0.8093,
+      "recoveries": 1,
+      "time_s": {
+       "driving": 1770.3,
+       "turning": 4.0,
+       "stopped": 141.2,
+       "reversing": 2.1
+      },
+      "position_err": {
+       "n": 1685,
+       "median_m": 6.46,
+       "p95_m": 9.73,
+       "max_m": 63.01
+      },
+      "gps": {
+       "filters": 1,
+       "restarts": null
+      },
+      "outage": {
+       "withheld": 180,
+       "gps_resets": null
+      }
+     },
+     "max_err_m": 62.57,
+     "outages": [
+      [
+       118.1,
+       207.2
+      ],
+      [
+       1311.8,
+       1400.9
+      ],
+      [
+       1498.8,
+       1587.9
+      ],
+      [
+       1824.4,
+       1913.5
+      ]
+     ],
+     "stops": [
+      {
+       "start": 1339.3,
+       "end": 1402.0,
+       "outage_share": 0.983,
+       "has_fix": false,
+       "reached": 2,
+       "cp_m": 3.15
+      },
+      {
+       "start": 1840.9,
+       "end": 1916.8,
+       "outage_share": 0.957,
+       "has_fix": false,
+       "reached": 3,
+       "cp_m": 2.98
+      }
+     ],
+     "recoveries": [
+      {
+       "t": 9.6,
+       "recoveries": 1,
+       "outage": false,
+       "has_fix": true,
+       "err_m": 4.36,
+       "cp_m": 395.43
+      }
+     ],
+     "checkpoints": [
+      {
+       "t": 458.6,
+       "reached": 1,
+       "outage": false,
+       "has_fix": true,
+       "err_m": 6.01,
+       "cp_m": 411.23
+      },
+      {
+       "t": 914.6,
+       "reached": 2,
+       "outage": false,
+       "has_fix": true,
+       "err_m": 6.01,
+       "cp_m": 375.98
+      },
+      {
+       "t": 1402.0,
+       "reached": 3,
+       "outage": false,
+       "has_fix": true,
+       "err_m": 20.21,
+       "cp_m": 378.72
+      }
+     ]
+    },
+    "restart": {
+     "rows": 1818,
+     "csv": "trace-quietdrift90-restart-338.csv",
+     "check": {
+      "found": true,
+      "different": []
+     },
+     "record": {
+      "ok": true,
+      "elapsed_s": 1917.6,
+      "made_good_mps": 0.8093,
+      "recoveries": 1,
+      "time_s": {
+       "driving": 1772.7,
+       "turning": 4.0,
+       "stopped": 138.8,
+       "reversing": 2.1
+      },
+      "position_err": {
+       "n": 1688,
+       "median_m": 6.39,
+       "p95_m": 8.41,
+       "max_m": 26.72
+      },
+      "gps": {
+       "filters": 1,
+       "restarts": 6
+      },
+      "outage": {
+       "withheld": 180,
+       "gps_resets": null
+      }
+     },
+     "max_err_m": 26.42,
+     "outages": [
+      [
+       118.1,
+       207.2
+      ],
+      [
+       1311.8,
+       1400.9
+      ],
+      [
+       1498.8,
+       1587.9
+      ],
+      [
+       1824.4,
+       1913.5
+      ]
+     ],
+     "stops": [
+      {
+       "start": 1339.3,
+       "end": 1402.0,
+       "outage_share": 0.983,
+       "has_fix": false,
+       "reached": 2,
+       "cp_m": 3.2
+      },
+      {
+       "start": 1843.1,
+       "end": 1916.8,
+       "outage_share": 0.956,
+       "has_fix": false,
+       "reached": 3,
+       "cp_m": 2.99
+      }
+     ],
+     "recoveries": [
+      {
+       "t": 9.6,
+       "recoveries": 1,
+       "outage": false,
+       "has_fix": true,
+       "err_m": 4.36,
+       "cp_m": 395.43
+      }
+     ],
+     "checkpoints": [
+      {
+       "t": 458.6,
+       "reached": 1,
+       "outage": false,
+       "has_fix": true,
+       "err_m": 6.01,
+       "cp_m": 411.29
+      },
+      {
+       "t": 914.6,
+       "reached": 2,
+       "outage": false,
+       "has_fix": true,
+       "err_m": 6.01,
+       "cp_m": 376.06
+      },
+      {
+       "t": 1402.0,
+       "reached": 3,
+       "outage": false,
+       "has_fix": true,
+       "err_m": 0.4,
+       "cp_m": 378.77
+      }
+     ]
+    }
+   },
+   "diff_s": 0.0,
+   "diverged_t": 209.4
+  }
+ ]
+}
