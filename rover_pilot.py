@@ -93,7 +93,7 @@ import time
 import urllib.error
 import urllib.request
 
-__version__ = "0.18.6"
+__version__ = "0.18.7"
 
 EARTH_RADIUS_M = 6371000.0
 M_PER_DEG = EARTH_RADIUS_M * math.pi / 180.0
@@ -1128,7 +1128,11 @@ class Pilot:
     # and starts from rest (studies/pace-s/TRACE.md). Waiting 10 s after each
     # clear of the history removed that in simulation and was slower nowhere,
     # but missed the pre-stated rule (two blocked missions lost their GPS), so
-    # it is not used yet (studies/pace-t/GRADE.md).
+    # it is not used yet (studies/pace-t/GRADE.md). pace_u.py (v0.18.7):
+    # 5 s and 10 s warm-ups missed their rule too (studies/pace-u/GRADE.md).
+    # A warm-up starts again at every clear, also at a 1 s stop for two
+    # missing GPS reports, and the lagging average still calls a rover stuck
+    # a few seconds after it is freed (studies/pace-u/TRACE.md).
     def _stuck(self, t, linear):
         # Measured on the GPS itself: a predicted position would always move.
         h = self._history
