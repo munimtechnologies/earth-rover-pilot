@@ -1,0 +1,26 @@
+{
+ "identical_summary": true,
+ "differences": [],
+ "runs_sha256": "a23c8a3913e3a0e695fef3f3bb95c4d965ddc69f31fe1c12f5e942161e4a68e6",
+ "lines": {
+  "outage90": 360,
+  "quiet90": 360,
+  "quietdrift90": 360,
+  "quiet45": 360,
+  "blocked30": 360
+ },
+ "bytes": {
+  "outage90": 722847,
+  "quiet90": 722208,
+  "quietdrift90": 726271,
+  "quiet45": 722424,
+  "blocked30": 725423
+ },
+ "sha256": {
+  "outage90": "040aa6b44e86de6580f99da9852b4a3709851b0eda9d44648a05f4efd9e8a045",
+  "quiet90": "bda3105d8fa3f2a45b354057c9554247a88b47bb3e47ce6c0147055a0353f08e",
+  "quietdrift90": "91326d137663c447c81ab24b5231d3b52a90d112ee5559322a1ca1c4fa46e540",
+  "quiet45": "185373cee3faa98cb22261790e36d3e2616a8f5a3a787ce4351480e898129c79",
+  "blocked30": "b3914f5836282805ffb8885bb5e67819997d1df5f77ece691bbf18e7b0c817bb"
+ }
+}
