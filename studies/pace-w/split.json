@@ -1,0 +1,30 @@
+{
+ "identical_summary": true,
+ "differences": [],
+ "rover_pilot": "0.19.0",
+ "runs_sha256": "06cbefff8fdce30ab228d4bc83c816330b1ab03284671689bde0a1ddfa0a2763",
+ "lines": {
+  "outage90": 216,
+  "quiet90": 216,
+  "quietdrift90": 216,
+  "quiet45": 216,
+  "blockedstart": 216,
+  "blockedmid": 216
+ },
+ "bytes": {
+  "outage90": 450556,
+  "quiet90": 450128,
+  "quietdrift90": 452734,
+  "quiet45": 450479,
+  "blockedstart": 454971,
+  "blockedmid": 455616
+ },
+ "sha256": {
+  "outage90": "92e21edd6b56005d3d52304572ad57a0cd6fe27bcc37169dae715a5b00cf2dae",
+  "quiet90": "6507595e3bf09d242f1df7f1a1950b4adcf27030434504b6e25b81bcecc03525",
+  "quietdrift90": "06a75ddce85731bc3df3d97bff1a80e4a217e3af283fddf717b8fb392a47afc5",
+  "quiet45": "18debdeadcf59c7291d3f53102f6059bcbbbe31d980e1b5dc1c66fe08c564a2c",
+  "blockedstart": "ce46c0de41660b88d73013c30eb4e9749dae0da5f4e0f2156d6489a481375b1e",
+  "blockedmid": "34a17502d7f66071c55fbe80eb93548370cd32f6e32d555c91aff31ff63e419c"
+ }
+}
