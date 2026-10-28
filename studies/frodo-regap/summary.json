@@ -1,0 +1,327 @@
+{
+ "version": "0.1.0",
+ "data": "FrodoBots-2K, FrodoBots Lab, CC BY-SA 4.0",
+ "done": true,
+ "elapsed_s": 2607.6,
+ "parts": [
+  {
+   "part": "output_rides_0",
+   "zip_bytes": 20156044600,
+   "rides_usable": 231,
+   "rides_sampled": 60,
+   "bytes_read": 5366645,
+   "seconds": 98.3
+  },
+  {
+   "part": "output_rides_1",
+   "zip_bytes": 31454310592,
+   "rides_usable": 547,
+   "rides_sampled": 60,
+   "bytes_read": 8294758,
+   "seconds": 97.7
+  },
+  {
+   "part": "output_rides_2",
+   "zip_bytes": 48880851930,
+   "rides_usable": 664,
+   "rides_sampled": 60,
+   "bytes_read": 12090135,
+   "seconds": 104.2
+  },
+  {
+   "part": "output_rides_3",
+   "zip_bytes": 91825236902,
+   "rides_usable": 855,
+   "rides_sampled": 60,
+   "bytes_read": 21293055,
+   "seconds": 114.1
+  },
+  {
+   "part": "output_rides_4",
+   "zip_bytes": 102171101982,
+   "rides_usable": 795,
+   "rides_sampled": 60,
+   "bytes_read": 23519932,
+   "seconds": 109.2
+  },
+  {
+   "part": "output_rides_5",
+   "zip_bytes": 92342150799,
+   "rides_usable": 694,
+   "rides_sampled": 60,
+   "bytes_read": 20598642,
+   "seconds": 113.8
+  },
+  {
+   "part": "output_rides_6",
+   "zip_bytes": 68762249887,
+   "rides_usable": 518,
+   "rides_sampled": 60,
+   "bytes_read": 16345217,
+   "seconds": 106.5
+  },
+  {
+   "part": "output_rides_7",
+   "zip_bytes": 22187497729,
+   "rides_usable": 182,
+   "rides_sampled": 60,
+   "bytes_read": 5987133,
+   "seconds": 102.1
+  },
+  {
+   "part": "output_rides_8",
+   "zip_bytes": 76871382998,
+   "rides_usable": 598,
+   "rides_sampled": 60,
+   "bytes_read": 19001233,
+   "seconds": 109.2
+  },
+  {
+   "part": "output_rides_9",
+   "zip_bytes": 14197217931,
+   "rides_usable": 146,
+   "rides_sampled": 60,
+   "bytes_read": 4738929,
+   "seconds": 194.3
+  },
+  {
+   "part": "output_rides_10",
+   "zip_bytes": 13087872164,
+   "rides_usable": 120,
+   "rides_sampled": 60,
+   "bytes_read": 4254125,
+   "seconds": 100.9
+  },
+  {
+   "part": "output_rides_11",
+   "zip_bytes": 75638043632,
+   "rides_usable": 977,
+   "rides_sampled": 60,
+   "bytes_read": 18287474,
+   "seconds": 106.0
+  },
+  {
+   "part": "output_rides_12",
+   "zip_bytes": 49233629060,
+   "rides_usable": 407,
+   "rides_sampled": 60,
+   "bytes_read": 12556271,
+   "seconds": 111.6
+  },
+  {
+   "part": "output_rides_13",
+   "zip_bytes": 44344695027,
+   "rides_usable": 362,
+   "rides_sampled": 60,
+   "bytes_read": 11481486,
+   "seconds": 110.9
+  },
+  {
+   "part": "output_rides_14",
+   "zip_bytes": 50518509198,
+   "rides_usable": 339,
+   "rides_sampled": 60,
+   "bytes_read": 12417275,
+   "seconds": 113.1
+  },
+  {
+   "part": "output_rides_15",
+   "zip_bytes": 25026675164,
+   "rides_usable": 156,
+   "rides_sampled": 60,
+   "bytes_read": 6298066,
+   "seconds": 104.1
+  },
+  {
+   "part": "output_rides_16",
+   "zip_bytes": 17007682709,
+   "rides_usable": 131,
+   "rides_sampled": 60,
+   "bytes_read": 5013843,
+   "seconds": 105.3
+  },
+  {
+   "part": "output_rides_17",
+   "zip_bytes": 37294182738,
+   "rides_usable": 303,
+   "rides_sampled": 60,
+   "bytes_read": 9447474,
+   "seconds": 104.2
+  },
+  {
+   "part": "output_rides_18",
+   "zip_bytes": 27772522586,
+   "rides_usable": 241,
+   "rides_sampled": 60,
+   "bytes_read": 7455115,
+   "seconds": 105.5
+  },
+  {
+   "part": "output_rides_19",
+   "zip_bytes": 15752598391,
+   "rides_usable": 152,
+   "rides_sampled": 60,
+   "bytes_read": 4558685,
+   "seconds": 101.5
+  },
+  {
+   "part": "output_rides_20",
+   "zip_bytes": 19805905156,
+   "rides_usable": 198,
+   "rides_sampled": 60,
+   "bytes_read": 5975793,
+   "seconds": 101.3
+  },
+  {
+   "part": "output_rides_21",
+   "zip_bytes": 13803039994,
+   "rides_usable": 146,
+   "rides_sampled": 60,
+   "bytes_read": 4555517,
+   "seconds": 101.1
+  },
+  {
+   "part": "output_rides_22",
+   "zip_bytes": 6829961585,
+   "rides_usable": 87,
+   "rides_sampled": 60,
+   "bytes_read": 2410944,
+   "seconds": 100.1
+  },
+  {
+   "part": "output_rides_23",
+   "zip_bytes": 2144505075,
+   "rides_usable": 53,
+   "rides_sampled": 53,
+   "bytes_read": 964313,
+   "seconds": 86.2
+  }
+ ],
+ "rides_sampled": 1433,
+ "rides_analysed": 1359,
+ "ride_errors": 0,
+ "rides_skipped": {
+  "too little data": 74
+ },
+ "bytes_read": 242912060,
+ "settings": {
+  "gap_s": 3.0,
+  "gps_lag_s": 1.5,
+  "mps_per_rpm": 0.00668,
+  "drove_m": 2.0,
+  "ref_s": [
+   1.5,
+   10.5
+  ],
+  "ref_min_pts": 4,
+  "ref_min_span_s": 4.0,
+  "base_every": 10,
+  "base_clean_s": 20.0,
+  "far_m": 5.0,
+  "worse_m": 2.0,
+  "e1_rate": [
+   1.0,
+   3.0
+  ],
+  "e1_min": 60,
+  "d1_ratio_max": 1.5,
+  "d1_far_max": 0.05,
+  "d2_min": 20,
+  "d2_worse_max": 0.1,
+  "rover_pilot": "0.19.0",
+  "frodo_motion": "0.2.0"
+ },
+ "fetched": {
+  "frodo_motion.py": {
+   "tag": "v0.8.0",
+   "version": "0.2.0",
+   "sha256": "095e70d01414b56b5ec5ddb74dfec75a4d8a2ffa3ff8dbc4e9a3a3122f4ea067"
+  },
+  "rover_pilot.py": {
+   "tag": "v0.19.0",
+   "version": "0.19.0",
+   "sha256": "66ff590f1738d07f829b9c285943fa292343e2931192d8351c092095b285b53d"
+  },
+  "PREDICTION.md": {
+   "sha256": "c936ec6642a9bac25a961c2248317d0010c65b514b974719d6d58e04715d5c57"
+  },
+  "frodo_regap.py": {
+   "sha256": "f724bd96defdbfd26721fbecb83f1e7980cf20c97b941d8d0652f617e29d359a",
+   "same_as_main": true
+  },
+  "test_frodo_regap.py": {
+   "sha256": "e4657e27b9a0b3892e33169362c154fac735e3e0a36c0db596a3db7416bc56f2",
+   "same_as_main": true
+  }
+ },
+ "conclusions": [
+  "1359 rides, 192.6 hours of GPS. The pilot's filter lost its fix (no reading for over 3 s) 333 times, 1.73 an hour (median gap 5.2 s, 90th percentile 45.3 s); the wheels drove 2 m or more through 0.4977 of the gaps that a new fix ended.",
+  "First new fix after a gap (120 scored): median 1.282 m from its reference, 90th percentile 4.444 m, 0.0667 over 5 m. Ordinary fixes (42547): median 0.736 m, 90th percentile 1.791 m, 0.0035 over 5 m. Ratio of medians 1.742 (95% CI [1.466, 2.176]).",
+  "On ordinary fixes the shipped average sits a median 1.944 m from the reference (90th percentile 3.254 m).",
+  "Gaps the wheels drove through (59): keep a median 2.789 m from the reference, restart 1.493 m (90th percentiles 6.919 and 4.646 m); restart over 2 m worse in 0.0169, over 2 m better in 0.1695.",
+  "Gaps the rover stood through (53): keep a median 1.47 m from the reference, restart 1.112 m (90th percentiles 4.452 and 4.114 m); restart over 2 m worse in 0.0189, over 2 m better in 0.0566.",
+  "D1 (stated before the run; ratio <= 1.5 and share over 5 m <= 0.05): not met. D2 (restart's median below keep's on gaps driven through, share worse <= 0.1): met.",
+  "Verdict: the first fix after a gap is worse than an ordinary fix, so a restart should wait for a second fix that agrees with it."
+ ],
+ "results": {
+  "rides": 1359,
+  "gps_hours": 192.56,
+  "gaps": {
+   "n": 333,
+   "per_hour": 1.73,
+   "median_s": 5.2,
+   "p90_s": 45.3,
+   "first_fixes": 270,
+   "share_drove": 0.4977,
+   "median_jump_m": 0.67
+  },
+  "first": {
+   "n": 120,
+   "median_m": 1.282,
+   "p90_m": 4.444,
+   "share_far": 0.0667
+  },
+  "base": {
+   "n": 42547,
+   "median_m": 0.736,
+   "p90_m": 1.791,
+   "share_far": 0.0035,
+   "median_keep_m": 1.944,
+   "p90_keep_m": 3.254
+  },
+  "ratio_median": 1.742,
+  "ratio_ci95": [
+   1.466,
+   2.176
+  ],
+  "drove": {
+   "n": 59,
+   "median_keep_m": 2.789,
+   "median_restart_m": 1.493,
+   "p90_keep_m": 6.919,
+   "p90_restart_m": 4.646,
+   "share_restart_worse": 0.0169,
+   "share_restart_better": 0.1695
+  },
+  "still": {
+   "n": 53,
+   "median_keep_m": 1.47,
+   "median_restart_m": 1.112,
+   "p90_keep_m": 4.452,
+   "p90_restart_m": 4.114,
+   "share_restart_worse": 0.0189,
+   "share_restart_better": 0.0566
+  }
+ },
+ "decision": {
+  "check": {
+   "gaps_per_hour": 1.73,
+   "first_scored": 120,
+   "base": 42547,
+   "ok": true
+  },
+  "d1_first_fix_ok": false,
+  "d2_restart_helps": true,
+  "verdict": "the first fix after a gap is worse than an ordinary fix, so a restart should wait for a second fix that agrees with it"
+ }
+}
