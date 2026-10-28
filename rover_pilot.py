@@ -93,7 +93,7 @@ import time
 import urllib.error
 import urllib.request
 
-__version__ = "0.18.7"
+__version__ = "0.19.0"
 
 EARTH_RADIUS_M = 6371000.0
 M_PER_DEG = EARTH_RADIUS_M * math.pi / 180.0
@@ -217,6 +217,17 @@ HEADING_LEARNER = {"min_move_m": 20.0}
 # but turned about 1 m before each corner, so by the pre-stated rule a real
 # rover keeps 16 m and alpha 0.3.
 PATH_LOOKAHEAD_M = 16.0
+
+# pace_v.py (v0.19.0): with no stuck verdict until 10 s after the stuck
+# history was last cleared, the false recovery move the shipped check makes
+# about 9 s after nearly every start was gone (none in 288 missions without
+# a block), the pilot was faster on every quiet course and slower on no
+# course of six profiles, and it missed no blocked rover the shipped check
+# caught; one blocked at the start was first helped at 19.1 s instead of
+# 9.1 s. A warm-up only after a stand of 3 s or more passed the rule too but
+# was slower on 4 of 6 blocked courses, so the command line gives a real
+# rover's stuck check this warm-up (Pilot.stuck_warmup_s). Simulated only.
+STUCK_WARMUP_S = 10.0
 
 
 # --- geometry -------------------------------------------------------------
@@ -935,6 +946,18 @@ class PathFollower:
         return self.points[min(len(self.points) - 1, best + self.lookahead_n)], best_d
 
 
+class StuckHistory(collections.deque):
+    """The Pilot's stuck history: (t, lat, lon, linear) for each judged
+    check. `cleared` turns true at every clear (a stop, the hold radius, a
+    recovery move); the warm-up turns it false when it starts (Pilot._warming)."""
+
+    cleared = True
+
+    def clear(self):
+        super().clear()
+        self.cleared = True
+
+
 class Pilot:
     """Flies an SDK mission: steer to each checkpoint in turn and report it.
 
@@ -976,6 +999,10 @@ class Pilot:
     `path_lookahead_m` (an attribute, 8 m): how far ahead along a planned
     path the rover aims (PathFollower's lookahead_m). The command line sets
     a real rover's to PATH_LOOKAHEAD_M.
+
+    `stuck_warmup_s` (an attribute, 0 s): the stuck check gives no verdict
+    until this long after its history was last cleared (0 = none). The
+    command line sets a real rover's to STUCK_WARMUP_S.
     """
 
     def __init__(self, rover, clock=time.monotonic, sleep=time.sleep,
@@ -1030,9 +1057,10 @@ class Pilot:
         self.plans = 0
         self.path = None
         self.path_lookahead_m = 8.0
+        self.stuck_warmup_s = 0.0
         self._path_seq = None
         self._plan_t = None
-        self._history = collections.deque()
+        self._history = StuckHistory()
         self._maneuver = []
         self._last_log_t = None
         self._leg_t0 = None
@@ -1132,7 +1160,22 @@ class Pilot:
     # 5 s and 10 s warm-ups missed their rule too (studies/pace-u/GRADE.md).
     # A warm-up starts again at every clear, also at a 1 s stop for two
     # missing GPS reports, and the lagging average still calls a rover stuck
-    # a few seconds after it is freed (studies/pace-u/TRACE.md).
+    # a few seconds after it is freed (studies/pace-u/TRACE.md). pace_v.py
+    # (v0.19.0): the 10 s warm-up after every clear met its rule, so a real
+    # rover's pilot waits that long (STUCK_WARMUP_S, _warming;
+    # studies/pace-v/GRADE.md).
+    def _warming(self, t):
+        """True while the stuck check waits out its warm-up: stuck_warmup_s
+        after its history was last cleared (pace_v.py's warm10). With 0 it
+        never waits and leaves the history's mark alone."""
+        if self.stuck_warmup_s <= 0:
+            return False
+        h = self._history
+        if h.cleared:
+            h.cleared = False
+            self._warm_from = t
+        return t - self._warm_from < self.stuck_warmup_s
+
     def _stuck(self, t, linear):
         # Measured on the GPS itself: a predicted position would always move.
         h = self._history
@@ -1200,7 +1243,7 @@ class Pilot:
             scale *= seen
         linear, angular = self.steering.command(distance, error)
         linear *= scale
-        if self._stuck(t, linear):
+        if not self._warming(t) and self._stuck(t, linear):
             self._start_recovery(t)
             return self._maneuver[0][1], self._maneuver[0][2]
         return linear, angular
@@ -1974,6 +2017,7 @@ def main(argv=None):
             if not args.simulate:
                 pilot.heading = make_heading(conventions)
                 pilot.path_lookahead_m = PATH_LOOKAHEAD_M
+                pilot.stuck_warmup_s = STUCK_WARMUP_S
             result = pilot.run(start=not args.no_start, timeout_s=args.timeout)
             if args.simulate and args.obstacles:
                 result["sim_contacts"] = rover.contacts
