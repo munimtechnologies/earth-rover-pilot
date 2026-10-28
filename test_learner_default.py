@@ -71,7 +71,7 @@ def flying_with(learner):
 
 class DefaultTests(unittest.TestCase):
     def test_version(self):
-        self.assertEqual(rp.__version__, "0.19.0")
+        self.assertEqual(rp.__version__, "0.19.1")
 
     def test_learner_is_the_study_s(self):
         self.assertEqual(rp.HEADING_LEARNER, {"min_move_m": 20.0})

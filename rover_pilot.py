@@ -93,7 +93,7 @@ import time
 import urllib.error
 import urllib.request
 
-__version__ = "0.19.0"
+__version__ = "0.19.1"
 
 EARTH_RADIUS_M = 6371000.0
 M_PER_DEG = EARTH_RADIUS_M * math.pi / 180.0
@@ -367,6 +367,12 @@ def rover_conventions():
 # the jump, but was slower on the straight boulevard course with 1.5 m of GPS
 # noise (6 of 24 seeds, a median of 0 s), so by the pre-stated rule it is not
 # used yet.
+# pace_w.py (v0.19.1): with v0.19.0's stuck-check warm-up the restart cut
+# the worst position error from 52-63 m to 10-11 m through 90 s outages and
+# was faster on bayside and blocks on every profile, but slower on the
+# boulevard course with a drifting compass (14 of 24 seeds, a median of
+# 2 s), so by the pre-stated rule a real rover keeps this average across
+# gaps (studies/pace-w/GRADE.md).
 class GpsFilter:
     """Drops bad GPS readings and smooths the good ones."""
 
