@@ -1,0 +1,56 @@
+test_check (test_pace_w.CheckTests.test_check) ... ok
+test_failed_run_fields (test_pace_w.FlyTests.test_failed_run_fields) ... ok
+test_restart_flies_as_pace_u (test_pace_w.FlyTests.test_restart_flies_as_pace_u) ... ok
+test_restored_after_a_failure (test_pace_w.FlyTests.test_restored_after_a_failure) ... ok
+test_settings_replace_the_variant (test_pace_w.FlyTests.test_settings_replace_the_variant) ... ok
+test_warm10_flies_as_pace_v (test_pace_w.FlyTests.test_warm10_flies_as_pace_v) ... ok
+test_checked (test_pace_w.SetupTests.test_checked) ... ok
+test_profiles (test_pace_w.SetupTests.test_profiles) ... ok
+test_seeds_are_fresh (test_pace_w.SetupTests.test_seeds_are_fresh) ... ok
+test_variants (test_pace_w.SetupTests.test_variants) ... ok
+test_main_small (test_pace_w.SummaryTests.test_main_small) ... ok
+test_pair_effects (test_pace_w.SummaryTests.test_pair_effects) ... ok
+test_profile_effects (test_pace_w.SummaryTests.test_profile_effects) ... ok
+test_tolerances (test_pace_w.SummaryTests.test_tolerances) ... ok
+test_block_windows (test_pace_v.BlockTests.test_block_windows) ... ok
+test_blocking_holds_the_rover (test_pace_v.BlockTests.test_blocking_holds_the_rover) ... ok
+test_no_block (test_pace_v.BlockTests.test_no_block) ... ok
+test_no_window_changes_nothing (test_pace_v.BlockTests.test_no_window_changes_nothing) ... ok
+test_outages_are_the_rovers_own (test_pace_v.BlockTests.test_outages_are_the_rovers_own) ... ok
+test_overlaps (test_pace_v.BlockTests.test_overlaps) ... ok
+test_check_against_pace_u (test_pace_v.CheckTests.test_check_against_pace_u) ... ok
+test_a_start_block_flies_as_blocked30 (test_pace_v.FlyTests.test_a_start_block_flies_as_blocked30) ... ok
+test_block_profiles_draw_their_block (test_pace_v.FlyTests.test_block_profiles_draw_their_block) ... ok
+test_failed_run_fields (test_pace_v.FlyTests.test_failed_run_fields) ... ok
+test_flies_as_pace_u (test_pace_v.FlyTests.test_flies_as_pace_u) ... ok
+test_restored_after_a_failure (test_pace_v.FlyTests.test_restored_after_a_failure) ... ok
+test_checked_u (test_pace_v.SetupTests.test_checked_u) ... ok
+test_profiles (test_pace_v.SetupTests.test_profiles) ... ok
+test_variants (test_pace_v.SetupTests.test_variants) ... ok
+test_block_record (test_pace_v.SummaryTests.test_block_record) ... ok
+test_block_rows (test_pace_v.SummaryTests.test_block_rows) ... ok
+test_main_small (test_pace_v.SummaryTests.test_main_small) ... ok
+test_pair_effects (test_pace_v.SummaryTests.test_pair_effects) ... ok
+test_profile_effects (test_pace_v.SummaryTests.test_profile_effects) ... ok
+test_step_up (test_pace_v.SummaryTests.test_step_up) ... ok
+test_stuck_rows (test_pace_v.SummaryTests.test_stuck_rows) ... ok
+test_tolerances (test_pace_v.SummaryTests.test_tolerances) ... ok
+test_a_recovery_move_is_no_stand (test_pace_v.WarmingTests.test_a_recovery_move_is_no_stand) ... ok
+test_a_short_stop_starts_no_warm_up (test_pace_v.WarmingTests.test_a_short_stop_starts_no_warm_up) ... ok
+test_a_stand_starts_one (test_pace_v.WarmingTests.test_a_stand_starts_one) ... ok
+test_catch_times_from_the_start (test_pace_v.WarmingTests.test_catch_times_from_the_start) ... ok
+test_real_rover_gets_the_study_s_warmup (test_stuck_warmup_default.CommandLineTests.test_real_rover_gets_the_study_s_warmup) ... ok
+test_simulator_unchanged (test_stuck_warmup_default.CommandLineTests.test_simulator_unchanged) ... ok
+test_with_other_real_rover_options (test_stuck_warmup_default.CommandLineTests.test_with_other_real_rover_options) ... ok
+test_class_default_unchanged (test_stuck_warmup_default.DefaultTests.test_class_default_unchanged) ... ok
+test_history_marks_each_clear (test_stuck_warmup_default.DefaultTests.test_history_marks_each_clear) ... ok
+test_version (test_stuck_warmup_default.DefaultTests.test_version) ... ok
+test_warm_up_after_each_clear (test_stuck_warmup_default.DefaultTests.test_warm_up_after_each_clear) ... ok
+test_warmup_is_the_study_s (test_stuck_warmup_default.DefaultTests.test_warmup_is_the_study_s) ... ok
+test_not_the_shipped_check (test_stuck_warmup_default.FliesAsTheStudyTests.test_not_the_shipped_check) ... ok
+test_release_warmup_flies_pace_v_warm10 (test_stuck_warmup_default.FliesAsTheStudyTests.test_release_warmup_flies_pace_v_warm10) ... ok
+
+----------------------------------------------------------------------
+Ran 51 tests in 16.471s
+
+OK
