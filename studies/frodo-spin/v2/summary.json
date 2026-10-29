@@ -1,0 +1,369 @@
+{
+ "version": "0.1.0",
+ "data": "FrodoBots-2K, FrodoBots Lab, CC BY-SA 4.0",
+ "done": true,
+ "elapsed_s": 4252.7,
+ "parts": [
+  {
+   "part": "output_rides_0",
+   "zip_bytes": 20156044600,
+   "rides_usable": 231,
+   "rides_sampled": 200,
+   "bytes_read": 15062029,
+   "seconds": 203.3
+  },
+  {
+   "part": "output_rides_1",
+   "zip_bytes": 31454310592,
+   "rides_usable": 547,
+   "rides_sampled": 200,
+   "bytes_read": 11469895,
+   "seconds": 176.8
+  },
+  {
+   "part": "output_rides_2",
+   "zip_bytes": 48880851930,
+   "rides_usable": 664,
+   "rides_sampled": 200,
+   "bytes_read": 17583643,
+   "seconds": 198.8
+  },
+  {
+   "part": "output_rides_3",
+   "zip_bytes": 91825236902,
+   "rides_usable": 855,
+   "rides_sampled": 200,
+   "bytes_read": 29479796,
+   "seconds": 198.2
+  },
+  {
+   "part": "output_rides_4",
+   "zip_bytes": 102171101982,
+   "rides_usable": 795,
+   "rides_sampled": 200,
+   "bytes_read": 31327486,
+   "seconds": 200.5
+  },
+  {
+   "part": "output_rides_5",
+   "zip_bytes": 92342150799,
+   "rides_usable": 694,
+   "rides_sampled": 200,
+   "bytes_read": 29315395,
+   "seconds": 204.8
+  },
+  {
+   "part": "output_rides_6",
+   "zip_bytes": 68762249887,
+   "rides_usable": 518,
+   "rides_sampled": 200,
+   "bytes_read": 23366718,
+   "seconds": 192.5
+  },
+  {
+   "part": "output_rides_7",
+   "zip_bytes": 22187497729,
+   "rides_usable": 182,
+   "rides_sampled": 182,
+   "bytes_read": 13152469,
+   "seconds": 179.9
+  },
+  {
+   "part": "output_rides_8",
+   "zip_bytes": 76871382998,
+   "rides_usable": 598,
+   "rides_sampled": 200,
+   "bytes_read": 31603597,
+   "seconds": 225.9
+  },
+  {
+   "part": "output_rides_9",
+   "zip_bytes": 14197217931,
+   "rides_usable": 146,
+   "rides_sampled": 146,
+   "bytes_read": 9859943,
+   "seconds": 145.6
+  },
+  {
+   "part": "output_rides_10",
+   "zip_bytes": 13087872164,
+   "rides_usable": 120,
+   "rides_sampled": 120,
+   "bytes_read": 7453254,
+   "seconds": 120.3
+  },
+  {
+   "part": "output_rides_11",
+   "zip_bytes": 75638043632,
+   "rides_usable": 978,
+   "rides_sampled": 200,
+   "bytes_read": 26018449,
+   "seconds": 212.3
+  },
+  {
+   "part": "output_rides_12",
+   "zip_bytes": 49233629060,
+   "rides_usable": 407,
+   "rides_sampled": 200,
+   "bytes_read": 21299580,
+   "seconds": 202.9
+  },
+  {
+   "part": "output_rides_13",
+   "zip_bytes": 44344695027,
+   "rides_usable": 362,
+   "rides_sampled": 200,
+   "bytes_read": 21624313,
+   "seconds": 210.8
+  },
+  {
+   "part": "output_rides_14",
+   "zip_bytes": 50518509198,
+   "rides_usable": 339,
+   "rides_sampled": 200,
+   "bytes_read": 27093884,
+   "seconds": 217.2
+  },
+  {
+   "part": "output_rides_15",
+   "zip_bytes": 25026675164,
+   "rides_usable": 156,
+   "rides_sampled": 156,
+   "bytes_read": 19436842,
+   "seconds": 178.7
+  },
+  {
+   "part": "output_rides_16",
+   "zip_bytes": 17007682709,
+   "rides_usable": 131,
+   "rides_sampled": 131,
+   "bytes_read": 10946229,
+   "seconds": 136.6
+  },
+  {
+   "part": "output_rides_17",
+   "zip_bytes": 37294182738,
+   "rides_usable": 303,
+   "rides_sampled": 200,
+   "bytes_read": 14754503,
+   "seconds": 194.4
+  },
+  {
+   "part": "output_rides_18",
+   "zip_bytes": 27772522586,
+   "rides_usable": 241,
+   "rides_sampled": 200,
+   "bytes_read": 13431184,
+   "seconds": 193.8
+  },
+  {
+   "part": "output_rides_19",
+   "zip_bytes": 15752598391,
+   "rides_usable": 152,
+   "rides_sampled": 152,
+   "bytes_read": 12204825,
+   "seconds": 158.2
+  },
+  {
+   "part": "output_rides_20",
+   "zip_bytes": 19805905156,
+   "rides_usable": 198,
+   "rides_sampled": 198,
+   "bytes_read": 17374192,
+   "seconds": 211.4
+  },
+  {
+   "part": "output_rides_21",
+   "zip_bytes": 13803039994,
+   "rides_usable": 146,
+   "rides_sampled": 146,
+   "bytes_read": 10202253,
+   "seconds": 150.9
+  },
+  {
+   "part": "output_rides_22",
+   "zip_bytes": 6829961585,
+   "rides_usable": 87,
+   "rides_sampled": 87,
+   "bytes_read": 6395064,
+   "seconds": 91.2
+  },
+  {
+   "part": "output_rides_23",
+   "zip_bytes": 2144505075,
+   "rides_usable": 53,
+   "rides_sampled": 53,
+   "bytes_read": 1439956,
+   "seconds": 46.2
+  }
+ ],
+ "rides_sampled": 4171,
+ "rides_analysed": 250,
+ "ride_errors": 0,
+ "rides_skipped": {
+  "no in-place turn from rest": 3890,
+  "compass does not calibrate": 30,
+  "no compass": 1
+ },
+ "bytes_read": 421895499,
+ "settings": {
+  "still_lin": 0.05,
+  "spin_ang": 0.3,
+  "quiet_ang": 0.1,
+  "row_gap_s": 0.5,
+  "pre_s": 1.5,
+  "post_s": 2.5,
+  "start_tol_s": 0.2,
+  "settle_s": 1.0,
+  "t_range": [
+   0.3,
+   5.0
+  ],
+  "back_deg": 60.0,
+  "gyro_from_s": 0.8,
+  "full_a": 0.8,
+  "bin_min": 10,
+  "e1": [
+   100,
+   40,
+   0.85
+  ],
+  "gyro_ratio": [
+   0.75,
+   1.33
+  ],
+  "pulse_ratio": 0.5,
+  "frame": "yz+",
+  "frodo_motion": "0.2.0",
+  "frodo_compass": "0.1.0",
+  "frodo_compass_live": "0.1.0"
+ },
+ "fetched": {
+  "frodo_motion.py": {
+   "ref": "v0.8.0",
+   "version": "0.2.0",
+   "sha256": "095e70d01414b56b5ec5ddb74dfec75a4d8a2ffa3ff8dbc4e9a3a3122f4ea067"
+  },
+  "frodo_compass.py": {
+   "ref": "main",
+   "version": "0.1.0",
+   "sha256": "3c640060762678e33a4e9604a506b19ce920489612b5266656300cafb9a31ade"
+  },
+  "frodo_compass_live.py": {
+   "ref": "main",
+   "version": "0.1.0",
+   "sha256": "cdc236e931121b68a417d7fe4102aecadcd2f02ea197ec576dcd8f67c7390119"
+  },
+  "frodo_spin.py": {
+   "ref": "main/studies/frodo-spin",
+   "sha256": "194b3bca8e5f1133abe6742b92b073df9248ffc1daa9da9ed9f90c2e7c8672b0",
+   "same_as_v1": true
+  },
+  "test_frodo_spin.py": {
+   "ref": "main/studies/frodo-spin",
+   "sha256": "7fbc1bb0b16902f921ebe571b0a2d770b323cb65e957b414a8d190da928d2f48",
+   "same_as_v1": true
+  },
+  "PLAN-v2.md": {
+   "on_main": true,
+   "sha256": "8a7e841514c2db372599615a7046cd9ca0ad70d1bdbcc2ec8117f508e051c3c0"
+  },
+  "PREDICTION.md": {
+   "sha256": "323f6781699df2d150204d248fa8ba2a5dc37805b3afb47385aaba359031d916"
+  }
+ },
+ "conclusions": [
+  "297 in-place turns from rest to rest on 235 rides (median hold 1.43 s, median |angular| 0.695). Least squares: turn = 23.41 deg/s x |angular| x seconds -3.1 deg (95% CI of the gain, rides resampled: [20.46, 26.64]). Turned the commanded way in 1.0 of turns of 10 deg or more.",
+  "Held 0.3-1 s (115): median turn 2.2 deg (10th-90th percentile -3.2-14.3), 5.12 deg/s per unit; with |angular| >= 0.8 (27): median 2.8 deg.",
+  "Held 1-2 s (69): median turn 11.7 deg (10th-90th percentile 1.1-24.1), 11.45 deg/s per unit; with |angular| >= 0.8 (20): median 11.9 deg.",
+  "Held 2-3 s (43): median turn 30.3 deg (10th-90th percentile 16.3-47.5), 18.01 deg/s per unit; with |angular| >= 0.8 (12): median 36.1 deg.",
+  "Held 3-5 s (70): median turn 61.0 deg (10th-90th percentile 31.5-99.2), 26.93 deg/s per unit; with |angular| >= 0.8 (15): median 57.5 deg.",
+  "By the fit, a turn command held 2.5 s (one RoboColosseum observation) turns the rover 55.4 deg at angular 1 and 26.1 deg at 0.5.",
+  "Gyroscope x during the same turns (157): 22.9 units per unit of angular, 0.978 times the compass gain.",
+  "D1: the gyroscope reads deg/s (gyro / compass gain 0.978, needs 0.75 to 1.33).",
+  "D2: short pulses cost turn (0.3-1 s holds below 0.5 of the 2-3 s holds' rate per unit)."
+ ],
+ "results": {
+  "rides": 250,
+  "rides_with_turns": 235,
+  "turns": 297,
+  "median_dur_s": 1.43,
+  "median_abs_a": 0.695,
+  "gain": 23.41,
+  "offset_deg": -3.13,
+  "gain_ci95": [
+   20.46,
+   26.64
+  ],
+  "sign_share": 1.0,
+  "bins": [
+   {
+    "dur_s": [
+     0.3,
+     1.0
+    ],
+    "n": 115,
+    "median_deg": 2.2,
+    "p10_deg": -3.2,
+    "p90_deg": 14.3,
+    "median_rate": 5.12,
+    "full_n": 27,
+    "full_median_deg": 2.8
+   },
+   {
+    "dur_s": [
+     1.0,
+     2.0
+    ],
+    "n": 69,
+    "median_deg": 11.7,
+    "p10_deg": 1.1,
+    "p90_deg": 24.1,
+    "median_rate": 11.45,
+    "full_n": 20,
+    "full_median_deg": 11.9
+   },
+   {
+    "dur_s": [
+     2.0,
+     3.0
+    ],
+    "n": 43,
+    "median_deg": 30.3,
+    "p10_deg": 16.3,
+    "p90_deg": 47.5,
+    "median_rate": 18.01,
+    "full_n": 12,
+    "full_median_deg": 36.1
+   },
+   {
+    "dur_s": [
+     3.0,
+     5.0
+    ],
+    "n": 70,
+    "median_deg": 61.0,
+    "p10_deg": 31.5,
+    "p90_deg": 99.2,
+    "median_rate": 26.93,
+    "full_n": 15,
+    "full_median_deg": 57.5
+   }
+  ],
+  "gyro_gain": 22.9,
+  "gyro_n": 157,
+  "gyro_over_gain": 0.978,
+  "held_2_5s_full_deg": 55.4,
+  "held_2_5s_half_deg": 26.1
+ },
+ "decision": {
+  "check": {
+   "turns": 297,
+   "rides_with_turns": 235,
+   "sign_share": 1.0,
+   "ok": true
+  },
+  "d1_gyro_reads_dps": true,
+  "d2_pulses_cost": true
+ }
+}
