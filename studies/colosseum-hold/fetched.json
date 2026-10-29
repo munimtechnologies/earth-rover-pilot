@@ -1,0 +1,42 @@
+{
+ "rover_pilot.py": {
+  "path": "rover_pilot.py",
+  "version": "0.19.1",
+  "sha256": "e971e1889c393a17df085cc278327d8887aef0cdc4bb8f8a60b469d8d9442021"
+ },
+ "dead_reckon.py": {
+  "path": "dead_reckon.py",
+  "version": "0.2.0",
+  "sha256": "bd7a329256884d57633fd03b1e580eea9477163d2b2465a663c31aec178ad54c"
+ },
+ "free_space.py": {
+  "path": "free_space.py",
+  "version": "0.5.0",
+  "sha256": "6f02c8826a45a41e320c7b2bab0bdc7323f8fb5d179f176bdce4449f9f10eb87"
+ },
+ "calibrate.py": {
+  "path": "calibrate.py",
+  "version": null,
+  "sha256": "efbfcfadcd41d3cf7a5b494eb2b99061a36ef881812606d4f13eac27bd355e56"
+ },
+ "route_planner.py": {
+  "path": "route_planner.py",
+  "version": null,
+  "sha256": "24370fdd4b24e540bf180ae249d731bc959cf1fd77bd108803e13639a54a601c"
+ },
+ "colosseum_compat.py": {
+  "path": "studies/colosseum-compat/colosseum_compat.py",
+  "version": null,
+  "sha256": "55afdc7d6bbcd6ddc9db47cf9ecbe7eb6e4d981321ce7db6f28543ac964911bc"
+ },
+ "PLAN.md": {
+  "on_main": true,
+  "sha256": "6f73bec009d146d5a6f92a03ef2de7931c8649fe933ed630c9ac1a2187a21bbf"
+ },
+ "colosseum_hold.py": {
+  "on_main": true,
+  "sha256": "1d54b068e77297bca07166e6187c13c314a39d17c75ea99e93b93ea9a6e99a19",
+  "local_sha256": "1d54b068e77297bca07166e6187c13c314a39d17c75ea99e93b93ea9a6e99a19",
+  "same_as_main": true
+ }
+}
