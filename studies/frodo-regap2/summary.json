@@ -1,0 +1,371 @@
+{
+ "version": "0.1.0",
+ "data": "FrodoBots-2K, FrodoBots Lab, CC BY-SA 4.0",
+ "done": true,
+ "elapsed_s": 3117.9,
+ "parts": [
+  {
+   "part": "output_rides_0",
+   "zip_bytes": 20156044600,
+   "rides_usable": 231,
+   "rides_sampled": 80,
+   "bytes_read": 5644944,
+   "seconds": 134.7
+  },
+  {
+   "part": "output_rides_1",
+   "zip_bytes": 31454310592,
+   "rides_usable": 547,
+   "rides_sampled": 80,
+   "bytes_read": 8540041,
+   "seconds": 131.8
+  },
+  {
+   "part": "output_rides_2",
+   "zip_bytes": 48880851930,
+   "rides_usable": 664,
+   "rides_sampled": 80,
+   "bytes_read": 12288121,
+   "seconds": 133.8
+  },
+  {
+   "part": "output_rides_3",
+   "zip_bytes": 91825236902,
+   "rides_usable": 855,
+   "rides_sampled": 80,
+   "bytes_read": 21381962,
+   "seconds": 153.0
+  },
+  {
+   "part": "output_rides_4",
+   "zip_bytes": 102171101982,
+   "rides_usable": 795,
+   "rides_sampled": 80,
+   "bytes_read": 23978397,
+   "seconds": 157.4
+  },
+  {
+   "part": "output_rides_5",
+   "zip_bytes": 92342150799,
+   "rides_usable": 694,
+   "rides_sampled": 80,
+   "bytes_read": 20929719,
+   "seconds": 144.2
+  },
+  {
+   "part": "output_rides_6",
+   "zip_bytes": 68762249887,
+   "rides_usable": 518,
+   "rides_sampled": 80,
+   "bytes_read": 16759449,
+   "seconds": 149.2
+  },
+  {
+   "part": "output_rides_7",
+   "zip_bytes": 22187497729,
+   "rides_usable": 182,
+   "rides_sampled": 80,
+   "bytes_read": 6197777,
+   "seconds": 142.1
+  },
+  {
+   "part": "output_rides_8",
+   "zip_bytes": 76871382998,
+   "rides_usable": 598,
+   "rides_sampled": 80,
+   "bytes_read": 19508232,
+   "seconds": 151.5
+  },
+  {
+   "part": "output_rides_9",
+   "zip_bytes": 14197217931,
+   "rides_usable": 146,
+   "rides_sampled": 80,
+   "bytes_read": 5034079,
+   "seconds": 136.4
+  },
+  {
+   "part": "output_rides_10",
+   "zip_bytes": 13087872164,
+   "rides_usable": 120,
+   "rides_sampled": 60,
+   "bytes_read": 4499774,
+   "seconds": 112.2
+  },
+  {
+   "part": "output_rides_11",
+   "zip_bytes": 75638043632,
+   "rides_usable": 977,
+   "rides_sampled": 80,
+   "bytes_read": 18548371,
+   "seconds": 144.5
+  },
+  {
+   "part": "output_rides_12",
+   "zip_bytes": 49233629060,
+   "rides_usable": 407,
+   "rides_sampled": 80,
+   "bytes_read": 12946043,
+   "seconds": 149.7
+  },
+  {
+   "part": "output_rides_13",
+   "zip_bytes": 44344695027,
+   "rides_usable": 362,
+   "rides_sampled": 80,
+   "bytes_read": 11936517,
+   "seconds": 138.5
+  },
+  {
+   "part": "output_rides_14",
+   "zip_bytes": 50518509198,
+   "rides_usable": 339,
+   "rides_sampled": 80,
+   "bytes_read": 12852515,
+   "seconds": 145.5
+  },
+  {
+   "part": "output_rides_15",
+   "zip_bytes": 25026675164,
+   "rides_usable": 156,
+   "rides_sampled": 80,
+   "bytes_read": 6905286,
+   "seconds": 139.1
+  },
+  {
+   "part": "output_rides_16",
+   "zip_bytes": 17007682709,
+   "rides_usable": 131,
+   "rides_sampled": 71,
+   "bytes_read": 5315043,
+   "seconds": 121.9
+  },
+  {
+   "part": "output_rides_17",
+   "zip_bytes": 37294182738,
+   "rides_usable": 303,
+   "rides_sampled": 80,
+   "bytes_read": 9775113,
+   "seconds": 135.9
+  },
+  {
+   "part": "output_rides_18",
+   "zip_bytes": 27772522586,
+   "rides_usable": 241,
+   "rides_sampled": 80,
+   "bytes_read": 8011604,
+   "seconds": 136.4
+  },
+  {
+   "part": "output_rides_19",
+   "zip_bytes": 15752598391,
+   "rides_usable": 152,
+   "rides_sampled": 80,
+   "bytes_read": 5056377,
+   "seconds": 134.0
+  },
+  {
+   "part": "output_rides_20",
+   "zip_bytes": 19805905156,
+   "rides_usable": 198,
+   "rides_sampled": 80,
+   "bytes_read": 6281558,
+   "seconds": 132.0
+  },
+  {
+   "part": "output_rides_21",
+   "zip_bytes": 13803039994,
+   "rides_usable": 146,
+   "rides_sampled": 80,
+   "bytes_read": 4713226,
+   "seconds": 136.8
+  },
+  {
+   "part": "output_rides_22",
+   "zip_bytes": 6829961585,
+   "rides_usable": 87,
+   "rides_sampled": 27,
+   "bytes_read": 2052021,
+   "seconds": 47.9
+  },
+  {
+   "part": "output_rides_23",
+   "zip_bytes": 2144505075,
+   "rides_usable": 53,
+   "rides_sampled": 0,
+   "bytes_read": 519985,
+   "seconds": 3.8
+  }
+ ],
+ "rides_sampled": 1758,
+ "rides_analysed": 1669,
+ "ride_errors": 0,
+ "rides_skipped": {
+  "too little data": 89
+ },
+ "bytes_read": 249676154,
+ "settings": {
+  "gap_s": 3.0,
+  "drove_m": 2.0,
+  "far_m": 5.0,
+  "worse_m": 2.0,
+  "agree_m": 2.0,
+  "agree_mps": 1.5,
+  "e1_rate": [
+   1.0,
+   3.0
+  ],
+  "e1_min": 60,
+  "d1_ratio_max": 1.5,
+  "d1_far_max": 0.05,
+  "d3_far_max": 0.05,
+  "d4_min": 20,
+  "d4_worse_max": 0.1,
+  "rover_pilot": "0.19.0",
+  "frodo_motion": "0.2.0",
+  "frodo_regap": "0.1.0"
+ },
+ "fetched": {
+  "frodo_motion.py": {
+   "ref": "v0.8.0",
+   "version": "0.2.0",
+   "sha256": "095e70d01414b56b5ec5ddb74dfec75a4d8a2ffa3ff8dbc4e9a3a3122f4ea067"
+  },
+  "rover_pilot.py": {
+   "ref": "v0.19.0",
+   "version": "0.19.0",
+   "sha256": "66ff590f1738d07f829b9c285943fa292343e2931192d8351c092095b285b53d"
+  },
+  "frodo_regap.py": {
+   "ref": "main/studies/frodo-regap",
+   "version": "0.1.0",
+   "sha256": "f724bd96defdbfd26721fbecb83f1e7980cf20c97b941d8d0652f617e29d359a"
+  },
+  "PREDICTION.md": {
+   "sha256": "e5c2ccf19e2b7c90164a42905c8828287cc63a89e0a85a8873937c331c9ce1f2"
+  },
+  "frodo_regap2.py": {
+   "sha256": "f626936086df63d37e504fa160d1c1451855d83fbb6e9d15b2b0facbdb22ddf8",
+   "same_as_main": true
+  },
+  "test_frodo_regap2.py": {
+   "sha256": "d08d331f9bd16109e81328dd026d03e393096b32f1fe921b830bd84d4706d27c",
+   "same_as_main": true
+  }
+ },
+ "conclusions": [
+  "1669 rides, 243.8 hours of GPS. The pilot's filter lost its fix (no reading for over 3 s) 441 times, 1.81 an hour (median gap 5.0 s, 90th percentile 29.7 s); the wheels drove 2 m or more through 0.4728 of the gaps that a new fix ended.",
+  "First new fix after a gap (191 scored): median 1.465 m from its reference, 0.0942 over 5 m. Ordinary fixes (54697): median 0.722 m, 0.0027 over 5 m. Ratio of medians 2.029 (95% CI [1.752, 2.335]).",
+  "313 gaps had a second new fix before the next gap (a median 0.8 s after the first); it agreed with the first in 0.9681 of them. Where both were scored (184), the first sat a median 1.488 m from its reference and the second 1.378 m. Confirm started the average again a median 0.8 s after the first fix (90th percentile 6.7 s), within 10 s in 0.9105 of these gaps.",
+  "All gaps, at the second fix (215): keep a median 2.016 m from the reference, restart 1.546 m, confirm 1.306 m; over 5 m: 0.1302, 0.0977 and 0.0791; more than 2 m worse than keep: restart 0.0047, confirm 0.0047.",
+  "Gaps the wheels drove through, at the second fix (97): keep a median 2.786 m from the reference, restart 1.589 m, confirm 1.349 m; over 5 m: 0.1546, 0.0928 and 0.0722; more than 2 m worse than keep: restart 0.0, confirm 0.0.",
+  "Gaps the rover stood through, at the second fix (92): keep a median 1.962 m from the reference, restart 1.598 m, confirm 1.427 m; over 5 m: 0.1087, 0.1087 and 0.087; more than 2 m worse than keep: restart 0.0, confirm 0.0.",
+  "First fixes over 5 m off with a second fix: 18; confirm refused 0.3333 of them at the second fix.",
+  "D1 again (ratio <= 1.5 and share over 5 m <= 0.05): fails again. D3 (confirm over 5 m at the second fix in at most 0.05, and no more often than restart): not met. D4 (on gaps driven through, confirm's median below keep's and more than 2 m worse in at most 0.1): met.",
+  "Verdict: waiting for a second agreeing fix lands nearer on average but still leaves too many estimates far off, so a real rover keeps the average."
+ ],
+ "results": {
+  "rides": 1669,
+  "gps_hours": 243.75,
+  "gaps": {
+   "n": 441,
+   "per_hour": 1.81,
+   "median_s": 5.0,
+   "p90_s": 29.7,
+   "first_fixes": 353,
+   "share_drove": 0.4728
+  },
+  "first": {
+   "n": 191,
+   "median_m": 1.465,
+   "p90_m": 4.572,
+   "share_far": 0.0942,
+   "median_keep_m": 2.399,
+   "median_restart_m": 1.465,
+   "median_confirm_m": 2.343
+  },
+  "base": {
+   "n": 54697,
+   "median_m": 0.722,
+   "p90_m": 1.771,
+   "share_far": 0.0027
+  },
+  "ratio_median": 2.029,
+  "ratio_ci95": [
+   1.752,
+   2.335
+  ],
+  "second": {
+   "n": 313,
+   "median_dt2_s": 0.8,
+   "share_agree": 0.9681,
+   "paired": 184,
+   "median_r_first_m": 1.488,
+   "median_r_second_m": 1.378
+  },
+  "confirm": {
+   "n": 311,
+   "median_after_s": 0.8,
+   "p90_after_s": 6.7,
+   "share_within_10s": 0.9105
+  },
+  "at2": {
+   "n": 215,
+   "median_keep_m": 2.016,
+   "p90_keep_m": 5.556,
+   "share_keep_far": 0.1302,
+   "median_restart_m": 1.546,
+   "p90_restart_m": 4.944,
+   "share_restart_far": 0.0977,
+   "median_confirm_m": 1.306,
+   "p90_confirm_m": 4.399,
+   "share_confirm_far": 0.0791,
+   "share_restart_worse": 0.0047,
+   "share_confirm_worse": 0.0047
+  },
+  "drove2": {
+   "n": 97,
+   "median_keep_m": 2.786,
+   "p90_keep_m": 5.563,
+   "share_keep_far": 0.1546,
+   "median_restart_m": 1.589,
+   "p90_restart_m": 4.66,
+   "share_restart_far": 0.0928,
+   "median_confirm_m": 1.349,
+   "p90_confirm_m": 4.412,
+   "share_confirm_far": 0.0722,
+   "share_restart_worse": 0.0,
+   "share_confirm_worse": 0.0
+  },
+  "still2": {
+   "n": 92,
+   "median_keep_m": 1.962,
+   "p90_keep_m": 5.023,
+   "share_keep_far": 0.1087,
+   "median_restart_m": 1.598,
+   "p90_restart_m": 5.123,
+   "share_restart_far": 0.1087,
+   "median_confirm_m": 1.427,
+   "p90_confirm_m": 4.255,
+   "share_confirm_far": 0.087,
+   "share_restart_worse": 0.0,
+   "share_confirm_worse": 0.0
+  },
+  "far_first": {
+   "n": 18,
+   "share_refused": 0.3333
+  }
+ },
+ "decision": {
+  "check": {
+   "gaps_per_hour": 1.81,
+   "second_scored": 215,
+   "base": 54697,
+   "ok": true
+  },
+  "d1_fails_again": true,
+  "d3_confirm_safe": false,
+  "d4_confirm_helps": true,
+  "verdict": "waiting for a second agreeing fix lands nearer on average but still leaves too many estimates far off, so a real rover keeps the average"
+ }
+}
