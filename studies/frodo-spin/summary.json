@@ -1,0 +1,360 @@
+{
+ "version": "0.1.0",
+ "data": "FrodoBots-2K, FrodoBots Lab, CC BY-SA 4.0",
+ "done": true,
+ "elapsed_s": 886.6,
+ "parts": [
+  {
+   "part": "output_rides_0",
+   "zip_bytes": 20156044600,
+   "rides_usable": 231,
+   "rides_sampled": 30,
+   "bytes_read": 7012906,
+   "seconds": 39.8
+  },
+  {
+   "part": "output_rides_1",
+   "zip_bytes": 31454310592,
+   "rides_usable": 547,
+   "rides_sampled": 30,
+   "bytes_read": 8507503,
+   "seconds": 32.0
+  },
+  {
+   "part": "output_rides_2",
+   "zip_bytes": 48880851930,
+   "rides_usable": 664,
+   "rides_sampled": 30,
+   "bytes_read": 13189487,
+   "seconds": 39.2
+  },
+  {
+   "part": "output_rides_3",
+   "zip_bytes": 91825236902,
+   "rides_usable": 855,
+   "rides_sampled": 30,
+   "bytes_read": 20745590,
+   "seconds": 37.5
+  },
+  {
+   "part": "output_rides_4",
+   "zip_bytes": 102171101982,
+   "rides_usable": 795,
+   "rides_sampled": 30,
+   "bytes_read": 22765636,
+   "seconds": 39.1
+  },
+  {
+   "part": "output_rides_5",
+   "zip_bytes": 92342150799,
+   "rides_usable": 694,
+   "rides_sampled": 30,
+   "bytes_read": 22418213,
+   "seconds": 44.7
+  },
+  {
+   "part": "output_rides_6",
+   "zip_bytes": 68762249887,
+   "rides_usable": 518,
+   "rides_sampled": 30,
+   "bytes_read": 19056174,
+   "seconds": 40.0
+  },
+  {
+   "part": "output_rides_7",
+   "zip_bytes": 22187497729,
+   "rides_usable": 182,
+   "rides_sampled": 30,
+   "bytes_read": 8236302,
+   "seconds": 36.1
+  },
+  {
+   "part": "output_rides_8",
+   "zip_bytes": 76871382998,
+   "rides_usable": 598,
+   "rides_sampled": 30,
+   "bytes_read": 18417493,
+   "seconds": 38.9
+  },
+  {
+   "part": "output_rides_9",
+   "zip_bytes": 14197217931,
+   "rides_usable": 146,
+   "rides_sampled": 30,
+   "bytes_read": 4040112,
+   "seconds": 30.5
+  },
+  {
+   "part": "output_rides_10",
+   "zip_bytes": 13087872164,
+   "rides_usable": 120,
+   "rides_sampled": 30,
+   "bytes_read": 4049994,
+   "seconds": 36.0
+  },
+  {
+   "part": "output_rides_11",
+   "zip_bytes": 75638043632,
+   "rides_usable": 978,
+   "rides_sampled": 30,
+   "bytes_read": 17915780,
+   "seconds": 37.5
+  },
+  {
+   "part": "output_rides_12",
+   "zip_bytes": 49233629060,
+   "rides_usable": 407,
+   "rides_sampled": 30,
+   "bytes_read": 12202807,
+   "seconds": 36.6
+  },
+  {
+   "part": "output_rides_13",
+   "zip_bytes": 44344695027,
+   "rides_usable": 362,
+   "rides_sampled": 30,
+   "bytes_read": 11059586,
+   "seconds": 35.9
+  },
+  {
+   "part": "output_rides_14",
+   "zip_bytes": 50518509198,
+   "rides_usable": 339,
+   "rides_sampled": 30,
+   "bytes_read": 13471933,
+   "seconds": 41.6
+  },
+  {
+   "part": "output_rides_15",
+   "zip_bytes": 25026675164,
+   "rides_usable": 156,
+   "rides_sampled": 30,
+   "bytes_read": 7423743,
+   "seconds": 37.5
+  },
+  {
+   "part": "output_rides_16",
+   "zip_bytes": 17007682709,
+   "rides_usable": 131,
+   "rides_sampled": 30,
+   "bytes_read": 5902121,
+   "seconds": 36.6
+  },
+  {
+   "part": "output_rides_17",
+   "zip_bytes": 37294182738,
+   "rides_usable": 303,
+   "rides_sampled": 30,
+   "bytes_read": 11560462,
+   "seconds": 38.3
+  },
+  {
+   "part": "output_rides_18",
+   "zip_bytes": 27772522586,
+   "rides_usable": 241,
+   "rides_sampled": 30,
+   "bytes_read": 8236418,
+   "seconds": 37.4
+  },
+  {
+   "part": "output_rides_19",
+   "zip_bytes": 15752598391,
+   "rides_usable": 152,
+   "rides_sampled": 30,
+   "bytes_read": 4476664,
+   "seconds": 33.6
+  },
+  {
+   "part": "output_rides_20",
+   "zip_bytes": 19805905156,
+   "rides_usable": 198,
+   "rides_sampled": 30,
+   "bytes_read": 6899553,
+   "seconds": 40.8
+  },
+  {
+   "part": "output_rides_21",
+   "zip_bytes": 13803039994,
+   "rides_usable": 146,
+   "rides_sampled": 30,
+   "bytes_read": 4644931,
+   "seconds": 34.6
+  },
+  {
+   "part": "output_rides_22",
+   "zip_bytes": 6829961585,
+   "rides_usable": 87,
+   "rides_sampled": 30,
+   "bytes_read": 2825138,
+   "seconds": 32.3
+  },
+  {
+   "part": "output_rides_23",
+   "zip_bytes": 2144505075,
+   "rides_usable": 53,
+   "rides_sampled": 30,
+   "bytes_read": 1312493,
+   "seconds": 29.3
+  }
+ ],
+ "rides_sampled": 720,
+ "rides_analysed": 49,
+ "ride_errors": 0,
+ "rides_skipped": {
+  "no in-place turn from rest": 667,
+  "compass does not calibrate": 4
+ },
+ "bytes_read": 256371039,
+ "settings": {
+  "still_lin": 0.05,
+  "spin_ang": 0.3,
+  "quiet_ang": 0.1,
+  "row_gap_s": 0.5,
+  "pre_s": 1.5,
+  "post_s": 2.5,
+  "start_tol_s": 0.2,
+  "settle_s": 1.0,
+  "t_range": [
+   0.3,
+   5.0
+  ],
+  "back_deg": 60.0,
+  "gyro_from_s": 0.8,
+  "full_a": 0.8,
+  "bin_min": 10,
+  "e1": [
+   100,
+   40,
+   0.85
+  ],
+  "gyro_ratio": [
+   0.75,
+   1.33
+  ],
+  "pulse_ratio": 0.5,
+  "frame": "yz+",
+  "frodo_motion": "0.2.0",
+  "frodo_compass": "0.1.0",
+  "frodo_compass_live": "0.1.0"
+ },
+ "fetched": {
+  "frodo_motion.py": {
+   "ref": "v0.8.0",
+   "version": "0.2.0",
+   "sha256": "095e70d01414b56b5ec5ddb74dfec75a4d8a2ffa3ff8dbc4e9a3a3122f4ea067"
+  },
+  "frodo_compass.py": {
+   "ref": "main",
+   "version": "0.1.0",
+   "sha256": "3c640060762678e33a4e9604a506b19ce920489612b5266656300cafb9a31ade"
+  },
+  "frodo_compass_live.py": {
+   "ref": "main",
+   "version": "0.1.0",
+   "sha256": "cdc236e931121b68a417d7fe4102aecadcd2f02ea197ec576dcd8f67c7390119"
+  },
+  "PREDICTION.md": {
+   "sha256": "323f6781699df2d150204d248fa8ba2a5dc37805b3afb47385aaba359031d916"
+  },
+  "frodo_spin.py": {
+   "sha256": "194b3bca8e5f1133abe6742b92b073df9248ffc1daa9da9ed9f90c2e7c8672b0",
+   "same_as_main": true
+  },
+  "test_frodo_spin.py": {
+   "sha256": "7fbc1bb0b16902f921ebe571b0a2d770b323cb65e957b414a8d190da928d2f48",
+   "same_as_main": true
+  }
+ },
+ "conclusions": [
+  "59 in-place turns from rest to rest on 49 rides (median hold 1.31 s, median |angular| 0.697). Least squares: turn = 29.53 deg/s x |angular| x seconds -2.8 deg (95% CI of the gain, rides resampled: [24.31, 35.13]). Turned the commanded way in 1.0 of turns of 10 deg or more.",
+  "Held 0.3-1 s (21): median turn 3.6 deg (10th-90th percentile -3.7-14.3), 12.55 deg/s per unit; with |angular| >= 0.8 (8): median 11.8 deg.",
+  "Held 1-2 s (17): median turn 10.8 deg (10th-90th percentile -0.0-22.4), 10.7 deg/s per unit; with |angular| >= 0.8 (6): median 10.8 deg.",
+  "Held 2-3 s (9): median turn 39.6 deg (10th-90th percentile 18.7-124.7), 23.11 deg/s per unit; with |angular| >= 0.8 (2): median 18.7 deg.",
+  "Held 3-5 s (12): median turn 88.8 deg (10th-90th percentile 50.7-116.6), 36.34 deg/s per unit; with |angular| >= 0.8 (3): median 99.2 deg.",
+  "By the fit, a turn command held 2.5 s (one RoboColosseum observation) turns the rover 71.1 deg at angular 1 and 34.1 deg at 0.5.",
+  "Gyroscope x during the same turns (32): 35.08 units per unit of angular, 1.188 times the compass gain.",
+  "Check E1 (stated before the run) failed: fewer than 100 turns or 40 rides. Nothing is decided."
+ ],
+ "results": {
+  "rides": 49,
+  "rides_with_turns": 49,
+  "turns": 59,
+  "median_dur_s": 1.31,
+  "median_abs_a": 0.697,
+  "gain": 29.53,
+  "offset_deg": -2.77,
+  "gain_ci95": [
+   24.31,
+   35.13
+  ],
+  "sign_share": 1.0,
+  "bins": [
+   {
+    "dur_s": [
+     0.3,
+     1.0
+    ],
+    "n": 21,
+    "median_deg": 3.6,
+    "p10_deg": -3.7,
+    "p90_deg": 14.3,
+    "median_rate": 12.55,
+    "full_n": 8,
+    "full_median_deg": 11.8
+   },
+   {
+    "dur_s": [
+     1.0,
+     2.0
+    ],
+    "n": 17,
+    "median_deg": 10.8,
+    "p10_deg": -0.0,
+    "p90_deg": 22.4,
+    "median_rate": 10.7,
+    "full_n": 6,
+    "full_median_deg": 10.8
+   },
+   {
+    "dur_s": [
+     2.0,
+     3.0
+    ],
+    "n": 9,
+    "median_deg": 39.6,
+    "p10_deg": 18.7,
+    "p90_deg": 124.7,
+    "median_rate": 23.11,
+    "full_n": 2,
+    "full_median_deg": 18.7
+   },
+   {
+    "dur_s": [
+     3.0,
+     5.0
+    ],
+    "n": 12,
+    "median_deg": 88.8,
+    "p10_deg": 50.7,
+    "p90_deg": 116.6,
+    "median_rate": 36.34,
+    "full_n": 3,
+    "full_median_deg": 99.2
+   }
+  ],
+  "gyro_gain": 35.08,
+  "gyro_n": 32,
+  "gyro_over_gain": 1.188,
+  "held_2_5s_full_deg": 71.1,
+  "held_2_5s_half_deg": 34.1
+ },
+ "decision": {
+  "check": {
+   "turns": 59,
+   "rides_with_turns": 49,
+   "sign_share": 1.0,
+   "ok": false,
+   "why": "fewer than 100 turns or 40 rides"
+  }
+ }
+}
