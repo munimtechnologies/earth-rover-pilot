@@ -1,0 +1,14 @@
+{
+ "rover_pilot.py": {
+  "version": "0.19.1",
+  "sha256": "e971e1889c393a17df085cc278327d8887aef0cdc4bb8f8a60b469d8d9442021"
+ },
+ "dead_reckon.py": {
+  "version": "0.2.0",
+  "sha256": "bd7a329256884d57633fd03b1e580eea9477163d2b2465a663c31aec178ad54c"
+ },
+ "PLAN.md": {
+  "on_main": true,
+  "sha256": "81b54fc449aa7812b8909214ba59a63df4609b38fac45be0c47a77e3ccd20519"
+ }
+}
