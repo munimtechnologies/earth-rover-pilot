@@ -93,7 +93,7 @@ import time
 import urllib.error
 import urllib.request
 
-__version__ = "0.19.1"
+__version__ = "0.19.2"
 
 EARTH_RADIUS_M = 6371000.0
 M_PER_DEG = EARTH_RADIUS_M * math.pi / 180.0
@@ -373,6 +373,10 @@ def rover_conventions():
 # boulevard course with a drifting compass (14 of 24 seeds, a median of
 # 2 s), so by the pre-stated rule a real rover keeps this average across
 # gaps (studies/pace-w/GRADE.md).
+# On recorded FrodoBots-2K rides (v0.19.2) the first fix after a gap sat
+# about twice as far off as an ordinary fix, and waiting for a second fix
+# that agrees still left 7.9% of estimates over 5 m off, so by the
+# pre-stated rule the restart is closed (studies/frodo-regap2/GRADE.md).
 class GpsFilter:
     """Drops bad GPS readings and smooths the good ones."""
 
