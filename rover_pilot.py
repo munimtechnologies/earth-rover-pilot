@@ -93,7 +93,7 @@ import time
 import urllib.error
 import urllib.request
 
-__version__ = "0.19.2"
+__version__ = "0.19.3"
 
 EARTH_RADIUS_M = 6371000.0
 M_PER_DEG = EARTH_RADIUS_M * math.pi / 180.0

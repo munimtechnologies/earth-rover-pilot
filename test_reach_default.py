@@ -60,7 +60,7 @@ def study_reckoner():
 
 class DefaultTests(unittest.TestCase):
     def test_version(self):
-        self.assertEqual(rp.__version__, "0.19.2")
+        self.assertEqual(rp.__version__, "0.19.3")
 
     def test_reach_is_the_study_s(self):
         self.assertEqual(rp.BRIDGE_MAX_S, 120.0)
